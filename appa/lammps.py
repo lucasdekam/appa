@@ -21,11 +21,6 @@ class AtomisticSimulation(LammpsInputFile):
     """
     Setting up an atomistic simulation
 
-    Parameters
-    ----------
-    working_directory : os.PathLike
-        Directory where simulation files will be stored.
-
     Examples
     --------
     >>> from ase.io import read
@@ -39,6 +34,12 @@ class AtomisticSimulation(LammpsInputFile):
     """
 
     def __init__(self, working_directory: os.PathLike):
+        """
+        Parameters
+        ----------
+        working_directory : os.PathLike
+            Directory where simulation files will be stored.
+        """
         self.working_directory = working_directory
         os.makedirs(self.working_directory, exist_ok=True)
 
