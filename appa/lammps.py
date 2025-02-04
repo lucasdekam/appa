@@ -8,8 +8,8 @@ import numpy as np
 from ase import Atoms, io
 from pymatgen.io.lammps.inputs import LammpsInputFile
 
+SYSTEM_DATA_FILENAME = "system.data"
 INIT_STAGENAME = "Initialization"
-READ_STAGENAME = "Reading atomic data"
 POTL_STAGENAME = "Setting up interatomic potential"
 MDYN_STAGENAME = "Molecular dynamics setup"
 LOGS_STAGENAME = "Optional logging settings"
@@ -56,6 +56,7 @@ class AtomisticSimulation(LammpsInputFile):
                 "units metal",
                 "boundary p p p",
                 "atom_style atomic",
+                f"read_data {SYSTEM_DATA_FILENAME}",
             ],
         )
 
@@ -84,7 +85,6 @@ class AtomisticSimulation(LammpsInputFile):
                     "pair_style mace no_domain_decomposition",
                     f"pair_coeff * * {model_file} {formatted_symbols}",
                 ],
-                after_stage=INIT_STAGENAME,
             )
         else:
             raise NotImplementedError(
@@ -147,7 +147,6 @@ class AtomisticSimulation(LammpsInputFile):
                 ),
                 f"dump_modify dump_1 element {formatted_symbols} sort id",
             ],
-            after_stage=INIT_STAGENAME,
         )
 
     def set_run(
@@ -183,7 +182,6 @@ class AtomisticSimulation(LammpsInputFile):
     def write_inputs(
         self,
         working_directory: os.PathLike = ".",
-        data_filename: str = "system.data",
         input_filename: str = "input.lmp",
     ):
         """
@@ -193,8 +191,6 @@ class AtomisticSimulation(LammpsInputFile):
         ----------
         working_directory : os.PathLike
             Directory to write the input files.
-        data_filename : str, optional
-            Name of the data file. Default is "system.data".
         input_filename : str, optional
             Name of the input file. Default is "input.lmp".
 
@@ -203,16 +199,9 @@ class AtomisticSimulation(LammpsInputFile):
         >>> sim.write_inputs(working_directory="results")
         """
         os.makedirs(working_directory, exist_ok=True)
-        data_path = os.path.join(working_directory, data_filename)
-
-        self.add_stage(
-            stage_name=READ_STAGENAME,
-            commands=[f"read_data {data_path}"],
-            after_stage=INIT_STAGENAME,
-        )
 
         io.write(
-            data_path,
+            os.path.join(working_directory, SYSTEM_DATA_FILENAME),
             self.atoms,
             format="lammps-data",
             specorder=self.species,
