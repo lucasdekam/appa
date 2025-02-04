@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "appa"
+version = "0.0.1"
+description = "Appa makes you fly with machine learning molecular dynamics simulations."
+readme = "README.md"
+authors = [
+    { name = "Lucas de Kam", email = "lucasdekam@gmail.com" }
+]
+license = { file = "LICENSE" }
+dependencies = [
+    "ase>=3.22", 
+    "numpy>=1.23",
+    "pymatgen>=2024.10.3",
+]
+requires-python = ">=3.9"
+
+[project.urls]
+Homepage = "https://github.com/lucasdekam/appa"
+
