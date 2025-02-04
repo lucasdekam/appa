@@ -3,7 +3,6 @@ LAMMPS I/O for atomistic machine learning simulations
 """
 
 from typing import Literal, Optional
-import warnings
 import os
 import numpy as np
 from ase import Atoms, io
@@ -15,6 +14,12 @@ POTL_STAGENAME = "Setting up interatomic potential"
 MDYN_STAGENAME = "Molecular dynamics setup"
 LOGS_STAGENAME = "Optional logging settings"
 RUNN_STAGENAME = "Running"
+SNELLIUS_LAMMPS_MODULES = [
+    "2023",
+    "CUDA/12.1.1",
+    "imkl/2023.1.0",
+    "OpenMPI/4.1.5-NVHPC-24.5-CUDA-12.1.1",
+]
 
 
 class AtomisticSimulation(LammpsInputFile):
@@ -219,45 +224,108 @@ class AtomisticSimulation(LammpsInputFile):
 
 
 class BatchJob:
-    def __init__(self, working_directory: os.PathLike):
-        self.working_directory = working_directory
+    """
+    A class to manage batch jobs for atomistic simulations.
 
-    def write_jobfile(
+    Parameters
+    ----------
+    working_directory : os.PathLike
+        The directory where the simulation tasks will be executed.
+    simulations : list of AtomisticSimulation
+        A list of atomistic simulations to be submitted by the batch job.
+    """
+
+    def __init__(
+        self, working_directory: os.PathLike, simulations: list[AtomisticSimulation]
+    ):
+        self.working_directory = working_directory
+        self.simulations = dict(enumerate(simulations))
+
+    def write_inputs(self):
+        """
+        Write input files for each simulation in the batch job.
+        """
+        for identifier, sim in self.simulations.items():
+            results_dir = os.path.join(self.working_directory, f"task_{identifier:06d}")
+            sim.write_inputs(results_dir)
+
+    def write_jobfile(  # pylint: disable=dangerous-default-value
         self,
-        modules: Optional[list] = None,
-        run_command="srun ~/lammps/build-a100/lmp -k on g 1 -sf kk -in input.lmp",
+        modules: Optional[list] = SNELLIUS_LAMMPS_MODULES,
+        lmp_executable="~/lammps/build-a100/lmp -k on g 1 -sf kk",
         **kwargs,
     ):
-        # Parse kwargs for SBATCH arguments
-        job_name = kwargs.get("job_name", "batch_job")
-        output = kwargs.get("output", "logs/job_%A_%a.out")
-        partition = kwargs.get("partition", "gpu")
-        nodes = kwargs.get("nodes", 1)
-        ntasks = kwargs.get("ntasks", 1)
-        cpus_per_task = kwargs.get("cpus_per_task", 18)
-        gpus = kwargs.get("gpus", 1)
-        time = kwargs.get("time", "3-00:00:00")
-
-        jobfile_content = f"""#!/bin/bash
-        #SBATCH --job-name={job_name}
-        #SBATCH --output={output}
-        #SBATCH --partition={partition}
-        #SBATCH --nodes={nodes}
-        #SBATCH --ntasks={ntasks}
-        #SBATCH --cpus-per-task={cpus_per_task}
-        #SBATCH --gpus={gpus}
-        #SBATCH --time={time}
         """
+        Write a SLURM job file for running the simulations.
 
-        # Load necessary modules
+        This function generates a SLURM job script that can be used to submit a batch job
+        for running multiple atomistic simulations. The job script includes necessary
+        SBATCH directives, module loading commands, and the execution command for LAMMPS.
+
+        Parameters
+        ----------
+        modules : list, optional
+            List of modules to load in the job script. Default are modules used to run LAMMPS
+            with GPU on Snellius.
+        lmp_executable : str, optional
+            Command to run LAMMPS. Default is "~/lammps/build-a100/lmp -k on g 1 -sf kk".
+            The code then adds 'srun' before this command and '-in input.lmp', the default input
+            file name, after the command.
+
+        Other Parameters
+        ----------------
+        Additional SBATCH arguments. Can be disabled by setting to None. Underscores in
+        the parameter names are replaced by dashes if necessary.
+        job_name: str
+            Name of the job. Default: "batch_job"
+        output: str
+            Name of SLURM output file. Default: "logs/job_%A_%a.out"
+            (uses %A for job ID and %a for array job ID).
+        partition: str
+            Name of partition. Default: "gpu"
+        nodes: int
+            Number of nodes. Default: 1
+        ntasks: int
+            Number of parallel tasks. Default: 1
+        cpus_per_task: int
+            Number of CPUs per task. Default: 18
+        gpus: int
+            Number of GPUs used. Default: 1
+        time: str
+            String specifying maximum runtime in (d-)hh:mm:ss. Default: "01:00:00"
+
+        Examples
+        --------
+        >>> batch_job.write_jobfile(job_name="my_job", time="1-00:00:00", partition="gpu")
+        """
+        sbatch_args = {
+            "job_name": "batch_job",
+            "output": "logs/job_%A_%a.out",
+            "partition": "gpu",
+            "nodes": 1,
+            "ntasks": 1,
+            "cpus_per_task": 18,
+            "gpus": 1,
+            "time": "01:00:00",
+        }
+        sbatch_args.update(kwargs)
+
+        jobfile_content = "#!/bin/bash\n"
+        for key, value in sbatch_args.items():
+            if value is not None:
+                sbatch_key = key.replace("_", "-")
+                jobfile_content += f"#SBATCH --{sbatch_key}={value}\n"
+        jobfile_content += "\n"
+
         if modules:
             for module in modules:
                 jobfile_content += f"module load {module}\n"
 
-        # Find folder corresponding to SLURM_ARRAY_TASK_ID
-        jobfile_content += f"FOLDER_LIST=({self.working_directory}/task_$(printf '%06d' $SLURM_ARRAY_TASK_ID))\n"
-        jobfile_content += "cd $FOLDER\n"
-        jobfile_content += f"{run_command}\n"
+        jobfile_content += f"""
+FOLDER_LIST=({self.working_directory}/task_$(printf '%06d' $SLURM_ARRAY_TASK_ID))
+cd $FOLDER_LIST
+srun {lmp_executable} -in input.lmp
+"""
 
         with open("jobfile.sh", "w", encoding="utf-8") as jobfile:
             jobfile.write(jobfile_content)
