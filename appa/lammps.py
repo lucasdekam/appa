@@ -24,28 +24,25 @@ class AtomisticSimulation(LammpsInputFile):
     Examples
     --------
     >>> from ase.io import read
-    >>> sim = AtomisticSimulation(working_directory="results")
     >>> atoms = read('myatoms.xyz')
-    >>> sim.set_atoms(atoms)
+    >>> sim = AtomisticSimulation(atoms)
     >>> sim.set_potential(model_file="my_potential.lammps.pt")
     >>> sim.set_molecular_dynamics(temperature=300, timestep=0.001)
-    >>> sim.set_run(n_steps=1000)
+    >>> sim.set_run(n_steps=10000)
     >>> sim.write_file(filename="input.lmp")
     """
 
-    def __init__(self, working_directory: os.PathLike):
+    def __init__(self, atoms: Atoms):
         """
+        Initialize the atomistic simulation with given atoms.
+
         Parameters
         ----------
-        working_directory : os.PathLike
-            Directory where simulation files will be stored.
+        atoms : Atoms
+            ASE Atoms object containing the atomic configuration.
         """
-        self.working_directory = working_directory
-        os.makedirs(self.working_directory, exist_ok=True)
-
-        self.atoms = None
-        self.species = None
-        self.data_file = None
+        self.atoms = atoms
+        self.species = np.unique(self.atoms.get_chemical_symbols()).tolist()
 
         super().__init__(stages=None)
         self.add_stage(
@@ -57,42 +54,11 @@ class AtomisticSimulation(LammpsInputFile):
             ],
         )
 
-    def set_atoms(self, atoms: Atoms):
-        """
-        Define the initial structure for the simulation
-
-        Parameters
-        ----------
-        atoms : Atoms
-            ASE Atoms object representing the atomic structure.
-
-        Examples
-        --------
-        >>> from ase.io import read
-        >>> atoms = read('myatoms.xyz')
-        >>> sim.set_atoms(atoms)
-        """
-        data_file_name = "system.data"
-        self.atoms = atoms
-        self.species = np.unique(self.atoms.get_chemical_symbols()).tolist()
-        self.data_file = os.path.join(self.working_directory, data_file_name)
-        self.add_stage(
-            stage_name=READ_STAGENAME,
-            commands=[f"read_data {self.data_file}"],
-        )
-        io.write(
-            self.data_file,
-            self.atoms,
-            format="lammps-data",
-            specorder=self.species,
-            masses=True,
-        )
-
     def set_potential(
         self, model_file: os.PathLike, architecture: Literal["mace"] = "mace"
     ):
         """
-        Define commands for the interatomic potential (force field)
+        Define commands for the interatomic potential (force field).
 
         Parameters
         ----------
@@ -113,7 +79,7 @@ class AtomisticSimulation(LammpsInputFile):
                     "pair_style mace no_domain_decomposition",
                     f"pair_coeff * * {model_file} {formatted_symbols}",
                 ],
-                after_stage=READ_STAGENAME,
+                after_stage=INIT_STAGENAME,
             )
         else:
             raise NotImplementedError(
@@ -127,9 +93,7 @@ class AtomisticSimulation(LammpsInputFile):
         **kwargs,
     ):
         """
-        This method sets up the molecular dynamics simulation by defining the
-        initial velocities, neighbor list construction, timestep, and thermostat
-        settings. It also configures the output of simulation data to a dump file.
+        Set up the molecular dynamics simulation.
 
         Parameters
         ----------
@@ -178,7 +142,7 @@ class AtomisticSimulation(LammpsInputFile):
                 ),
                 f"dump_modify dump_1 element {formatted_symbols} sort id",
             ],
-            after_stage=POTL_STAGENAME,
+            after_stage=INIT_STAGENAME,
         )
 
     def set_run(
@@ -187,7 +151,7 @@ class AtomisticSimulation(LammpsInputFile):
         restart_freq: Optional[int] = None,
     ):
         """
-        Define run command and saving restart files
+        Define run command and saving restart files.
 
         Parameters
         ----------
@@ -209,41 +173,91 @@ class AtomisticSimulation(LammpsInputFile):
         self.add_stage(
             stage_name=RUNN_STAGENAME,
             commands=commands,
-            after_stage=MDYN_STAGENAME,
         )
 
-    def write_file(
+    def write_inputs(
         self,
-        filename: str = "input.lmp",
-        ignore_comments: bool = False,
-        keep_stages: bool = True,
+        working_directory: os.PathLike = ".",
+        data_filename: str = "system.data",
+        input_filename: str = "input.lmp",
     ):
         """
-        Write the LAMMPS input file.
+        Write the LAMMPS input file and system.data file.
 
         Parameters
         ----------
-        filename : str, optional
-            The filename to output to, including path. Default is "input.lmp".
-        ignore_comments : bool, optional
-            True if only the commands should be kept from the InputFile. Default is False.
-        keep_stages : bool, optional
-            True if the block structure from the InputFile should be kept according to the stages.
-            Default is True.
-        """
-        valid_stages = [
-            INIT_STAGENAME,
-            READ_STAGENAME,
-            POTL_STAGENAME,
-            MDYN_STAGENAME,
-            RUNN_STAGENAME,
-        ]
+        working_directory : os.PathLike
+            Directory to write the input files.
+        data_filename : str, optional
+            Name of the data file. Default is "system.data".
+        input_filename : str, optional
+            Name of the input file. Default is "input.lmp".
 
-        if not all(stage in self.stages_names for stage in valid_stages):
-            warnings.warn(
-                category=Warning,
-                message="WARNING: Not all parts of the simulation may be present. "
-                "You need to run set_atoms, set_potential, set_molecular_dynamics and set_run, "
-                "with set_run last.",
-            )
-        super().write_file(filename, ignore_comments, keep_stages)
+        Examples
+        --------
+        >>> sim.write_inputs(working_directory="results")
+        """
+        os.makedirs(working_directory, exist_ok=True)
+        data_path = os.path.join(working_directory, data_filename)
+
+        self.add_stage(
+            stage_name=READ_STAGENAME,
+            commands=[f"read_data {data_path}"],
+            after_stage=INIT_STAGENAME,
+        )
+
+        io.write(
+            data_path,
+            self.atoms,
+            format="lammps-data",
+            specorder=self.species,
+            masses=True,
+        )
+
+        input_path = os.path.join(working_directory, input_filename)
+        self.write_file(input_path)
+
+
+class BatchJob:
+    def __init__(self, working_directory: os.PathLike):
+        self.working_directory = working_directory
+
+    def write_jobfile(
+        self,
+        modules: Optional[list] = None,
+        run_command="srun ~/lammps/build-a100/lmp -k on g 1 -sf kk -in input.lmp",
+        **kwargs,
+    ):
+        # Parse kwargs for SBATCH arguments
+        job_name = kwargs.get("job_name", "batch_job")
+        output = kwargs.get("output", "logs/job_%A_%a.out")
+        partition = kwargs.get("partition", "gpu")
+        nodes = kwargs.get("nodes", 1)
+        ntasks = kwargs.get("ntasks", 1)
+        cpus_per_task = kwargs.get("cpus_per_task", 18)
+        gpus = kwargs.get("gpus", 1)
+        time = kwargs.get("time", "3-00:00:00")
+
+        jobfile_content = f"""#!/bin/bash
+        #SBATCH --job-name={job_name}
+        #SBATCH --output={output}
+        #SBATCH --partition={partition}
+        #SBATCH --nodes={nodes}
+        #SBATCH --ntasks={ntasks}
+        #SBATCH --cpus-per-task={cpus_per_task}
+        #SBATCH --gpus={gpus}
+        #SBATCH --time={time}
+        """
+
+        # Load necessary modules
+        if modules:
+            for module in modules:
+                jobfile_content += f"module load {module}\n"
+
+        # Find folder corresponding to SLURM_ARRAY_TASK_ID
+        jobfile_content += f"FOLDER_LIST=({self.working_directory}/task_$(printf '%06d' $SLURM_ARRAY_TASK_ID))\n"
+        jobfile_content += "cd $FOLDER\n"
+        jobfile_content += f"{run_command}\n"
+
+        with open("jobfile.sh", "w", encoding="utf-8") as jobfile:
+            jobfile.write(jobfile_content)
