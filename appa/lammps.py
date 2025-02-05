@@ -82,6 +82,7 @@ class AtomisticSimulation(LammpsInputFile):
             self.add_stage(
                 stage_name=POTL_STAGENAME,
                 commands=[
+                    "newton on",
                     "pair_style mace no_domain_decomposition",
                     f"pair_coeff * * {model_file} {formatted_symbols}",
                 ],
