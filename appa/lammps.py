@@ -164,7 +164,7 @@ class AtomisticSimulation(LammpsInputFile):
                 "thermo_modify format float %15.7f",
                 (
                     f"dump dump_1 all custom {dump_freq} {dump_name} "
-                    "id element xu yu zu fx fy fz vx vy vz"
+                    "id type element xu yu zu fx fy fz vx vy vz"
                 ),
                 f"dump_modify dump_1 element {formatted_symbols} sort id",
             ],
