@@ -10,7 +10,8 @@ from pymatgen.io.lammps.inputs import LammpsInputFile
 
 SYSTEM_DATA_FILENAME = "system.data"
 INIT_STAGENAME = "Initialization"
-POTL_STAGENAME = "Setting up interatomic potential"
+READ_STAGENAME = "Define simulation box"
+POTL_STAGENAME = "Define interatomic potential"
 MDYN_STAGENAME = "Molecular dynamics setup"
 LOGS_STAGENAME = "Optional logging settings"
 RUNN_STAGENAME = "Running"
@@ -56,6 +57,11 @@ class AtomisticSimulation(LammpsInputFile):
                 "units metal",
                 "boundary p p p",
                 "atom_style atomic",
+            ],
+        )
+        self.add_stage(
+            stage_name=READ_STAGENAME,
+            commands=[
                 f"read_data {SYSTEM_DATA_FILENAME}",
             ],
         )
@@ -79,10 +85,13 @@ class AtomisticSimulation(LammpsInputFile):
         """
         if architecture == "mace":
             formatted_symbols = " ".join(self.species)
+            self.add_commands(
+                stage_name=INIT_STAGENAME,
+                commands=["atom_modify map yes", "newton on"],
+            )
             self.add_stage(
                 stage_name=POTL_STAGENAME,
                 commands=[
-                    "newton on",
                     "pair_style mace no_domain_decomposition",
                     f"pair_coeff * * {model_file} {formatted_symbols}",
                 ],
@@ -120,6 +129,12 @@ class AtomisticSimulation(LammpsInputFile):
             Frequency of dump file output. Default is 10.
         dump_name : str, optional
             Name of the dump file. Default is "lammps.dump".
+        neigh_modify : int, optional
+            After how many steps to re-calculate the neighbor list. Default: 10
+        thermo_freq : int, optional
+            How often to print thermo information to the log file. Default: 10
+
+        TODO: move logging settings to a separate method.
 
         Examples
         --------
@@ -130,6 +145,8 @@ class AtomisticSimulation(LammpsInputFile):
         seed = kwargs.get("seed", 1)
         dump_freq = kwargs.get("dump_freq", 10)
         dump_name = kwargs.get("dump_name", "lammps.dump")
+        neigh_modify = kwargs.get("neigh_modify", 10)
+        thermo_freq = kwargs.get("thermo_freq", 10)
 
         formatted_symbols = " ".join(self.species)
 
@@ -139,9 +156,12 @@ class AtomisticSimulation(LammpsInputFile):
                 f"velocity all create {temperature} {seed}",
                 f"velocity all scale {temperature}",
                 f"neighbor {skin:.1f} bin",
-                "neigh_modify every 1",
+                f"neigh_modify every {neigh_modify}",
                 f"timestep {timestep}",
                 f"fix thermo_fix all nvt temp {temperature} {temperature} {damping}",
+                f"thermo {thermo_freq}",
+                "thermo_style custom step pe ke etotal temp",
+                "thermo_modify format float %15.7f",
                 (
                     f"dump dump_1 all custom {dump_freq} {dump_name} "
                     "id element xu yu zu fx fy fz vx vy vz"
