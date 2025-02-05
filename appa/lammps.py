@@ -316,8 +316,8 @@ class ArrayJob:
                 jobfile_content += f"module load {module}\n"
 
         jobfile_content += f"""
-FOLDER_LIST=({self.working_directory}/task_$(printf '%06d' $SLURM_ARRAY_TASK_ID))
-cd $FOLDER_LIST
+FOLDER_PATH="{self.working_directory}/task_$(printf '%06d' $SLURM_ARRAY_TASK_ID)"
+cd $FOLDER_PATH
 srun {lmp_executable} -in input.lmp
 """
 
