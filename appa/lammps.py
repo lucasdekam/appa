@@ -212,9 +212,9 @@ class AtomisticSimulation(LammpsInputFile):
         self.write_file(input_path)
 
 
-class BatchJob:
+class ArrayJob:
     """
-    A class to set up batch jobs for atomistic simulations.
+    A class to set up array jobs for atomistic simulations.
 
     Parameters
     ----------
@@ -285,7 +285,12 @@ class BatchJob:
 
         Examples
         --------
-        >>> batch_job.write_jobfile(job_name="my_job", time="1-00:00:00", partition="gpu")
+        >>> sims = [...] # define your simulations in a list
+        >>> array_job = ArrayJob("results", sims)
+        >>> array_job.write_jobfile(job_name="my_job", time="1-00:00:00", partition="gpu")
+
+        Submit jobs with index 0 to 5 as follows:
+        >>> sbatch jobfile.sh --array=0-5
         """
         sbatch_args = {
             "job_name": "batch_job",
