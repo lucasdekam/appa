@@ -214,7 +214,7 @@ class AtomisticSimulation(LammpsInputFile):
 
 class BatchJob:
     """
-    A class to manage batch jobs for atomistic simulations.
+    A class to set up batch jobs for atomistic simulations.
 
     Parameters
     ----------
