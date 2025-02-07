@@ -99,7 +99,7 @@ class LearningCurve:
             energy_per_atom_errors.append(e_err)
 
         self.errors["force_component"].append(force_component_errors)
-        self.errors["force_component"].append(energy_per_atom_errors)
+        self.errors["energy_per_atom"].append(energy_per_atom_errors)
 
     def make_violin(
         self,
@@ -182,9 +182,9 @@ class LearningCurve:
         axes.set_xlabel("Training set")
 
         if error_type == "force_component":
-            axes.set_ylabel(r"Force component error / meV/$\mathrm{\AA}$")
+            axes.set_ylabel(r"Error / meV/$\mathrm{\AA}$")
         elif error_type == "energy_per_atom":
-            axes.set_ylabel("Energy per atom error / meV")
+            axes.set_ylabel("Error / meV")
 
         return violin
 
@@ -247,10 +247,10 @@ class LearningCurve:
         )
 
         axes.set_xlabel("Training set size")
-        if error_type == "forces_err":
-            axes.set_ylabel(r"Force component RMSE / meV/$\mathrm{\AA}$")
-        elif error_type == "energy_per_atom_err":
-            axes.set_ylabel("Energy per atom RMSE / meV")
+        if error_type == "force_component":
+            axes.set_ylabel(r"RMSE / meV/$\mathrm{\AA}$")
+        elif error_type == "energy_per_atom":
+            axes.set_ylabel("RMSE / meV")
         if legend:
             axes.legend(frameon=False)
 
