@@ -84,14 +84,14 @@ style = dict(
     fillstyle="full",
 )
 
-mace.make_violin(
+mace_lc.make_violin(
     ax_vi, 
     error_type="force_component",
     face_color=styles["mace-2-layer"]["color"],
     n_subsampling=10000,
 )
 
-mace.make_learningcurve(
+mace_lc.make_learningcurve(
     ax_lc,
     error_type="force_component",
     **style,
