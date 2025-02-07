@@ -1,6 +1,15 @@
+![Appa Icon](https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/0a1d2e33-9dcf-47be-8ecd-c0af5458c545/drieup-065047ff-715e-467b-a309-31ff11b7a61a.jpg/v1/fill/w_150,h_150,q_75,strp/appa_icon_by_rufftoon_drieup-fullview.jpg?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7ImhlaWdodCI6Ijw9MjAwIiwicGF0aCI6IlwvZlwvMGExZDJlMzMtOWRjZi00N2JlLThlY2QtYzBhZjU0NThjNTQ1XC9kcmlldXAtMDY1MDQ3ZmYtNzE1ZS00NjdiLWEzMDktMzFmZjExYjdhNjFhLmpwZyIsIndpZHRoIjoiPD0yMDAifV1dLCJhdWQiOlsidXJuOnNlcnZpY2U6aW1hZ2Uub3BlcmF0aW9ucyJdfQ.nmOkivf8pvdmI2b2LL6Qa_qBiid5-RG7JfypiQdTHZ8)
+
 # Appa
 
-Some code I use in my research for quickly setting up simulations. Currently includes LAMMPS simulations with MACE. Example:
+Miscellaneous code I use in my research. 
+
+(Appa is the flying bison in the series *Avatar: The Last Airbender* and speeds up the journey of the Avatar by flying rather than walking.)
+
+Icon credit: *rufftoon* on [DeviantArt](https://www.deviantart.com/rufftoon/art/Appa-Icon-46208689)
+
+## Setting up LAMMPS simulations
+The `appa.lammps` module sets up LAMMPS simulations with MACE (and could be extended for use with other interatomic potentials). Example:
 
 ```python
 from appa.lammps import AtomisticSimulation, ArrayJob
@@ -34,3 +43,8 @@ Then you can submit the two simulations (indices 0 to 1) as an array job:
 ```bash
 sbatch jobfile.sh --array=0-1
 ```
+
+
+## Learning curves
+The `appa.learning_curves` module contains tools to plot learning curves for machine learning interatomic potentials. In this context a learning curve plot shows the test error of the model against the training set size. For all data points the model should be fully trained. (These learning curves are not to be confused with test/train error vs. #epochs curves obtained from training one model). See also fig. 2e of [this paper](https://arxiv.org/pdf/2404.12367).
+
