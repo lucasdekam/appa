@@ -88,7 +88,7 @@ style = dict(
 mace_lc.make_violin(
     ax_vi, 
     error_type="force_component",
-    face_color=styles["mace-2-layer"]["color"],
+    face_color=style["color"],
     n_subsampling=10000,
 )
 
