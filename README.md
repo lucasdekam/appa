@@ -4,9 +4,9 @@
 
 Miscellaneous code I use in my research. 
 
-(Appa is the flying bison in the series *Avatar: The Last Airbender* and speeds up the journey of the Avatar by flying rather than walking.)
+(Appa is a pet flying bison in the series *Avatar: The Last Airbender*. He speeds up the journey of the Avatar by flying him and his friends around.)
 
-Icon credit: *rufftoon* on [DeviantArt](https://www.deviantart.com/rufftoon/art/Appa-Icon-46208689)
+Icon by *rufftoon* on [DeviantArt](https://www.deviantart.com/rufftoon/art/Appa-Icon-46208689)
 
 ## Setting up LAMMPS simulations
 The `appa.lammps` module sets up LAMMPS simulations with MACE (and could be extended for use with other interatomic potentials). Example:
@@ -46,5 +46,58 @@ sbatch jobfile.sh --array=0-1
 
 
 ## Learning curves
-The `appa.learning_curves` module contains tools to plot learning curves for machine learning interatomic potentials. In this context a learning curve plot shows the test error of the model against the training set size. For all data points the model should be fully trained. (These learning curves are not to be confused with test/train error vs. #epochs curves obtained from training one model). See also fig. 2e of [this paper](https://arxiv.org/pdf/2404.12367).
+The `appa.learning_curves` module contains tools to plot learning curves for machine learning interatomic potentials. In this context a learning curve plot shows the test error of the model against the training set size. For all data points the model should be fully trained. (These learning curves are not to be confused with test/train error vs. #epochs curves obtained from training one model). See also fig. 2e of [this paper](https://arxiv.org/pdf/2404.12367). Example:
+
+```python
+from appa.learning_curves import LearningCurve 
+import numpy as np
+
+seeds = range(3)  # define seeds with which different models are trained
+# (even better would be to subsample different training sets)
+subsets = [10, 110, 610, 1610, 2879]  # define size of each training set
+
+# load 'true' forces and energy on test set
+dft_forces = np.load('data/test.f.npy')
+dft_energy = np.load('data/test.e.npy')
+
+mace_lc = LearningCurve(dft_forces=dft_forces, dft_energy=dft_energy)
+for i, size in enumerate(subsets):
+    mace_lc.add_training_set(
+        n_training_samples=size,
+        ml_forces=[np.load(f"models/test-{i:d}-{j:d}.f.npy") for j in seeds],
+        ml_energy=[np.load(f"models/test-{i:d}-{j:d}.e.npy") for j in seeds],
+    )
+```
+
+Then plotting:
+
+```python
+fig = plt.figure(figsize=(7,3))
+ax_lc = fig.add_subplot(121)
+ax_vi = fig.add_subplot(122)
+
+style = dict(
+    color="#f52f2f",
+    label="mace",
+    marker="o",
+    markersize=7,
+    fillstyle="full",
+)
+
+mace.make_violin(
+    ax_vi, 
+    error_type="force_component",
+    face_color=styles["mace-2-layer"]["color"],
+    n_subsampling=10000,
+)
+
+mace.make_learningcurve(
+    ax_lc,
+    error_type="force_component",
+    **style,
+)
+
+fig.tight_layout()
+plt.show()
+```
 
