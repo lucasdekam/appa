@@ -72,6 +72,7 @@ for i, size in enumerate(subsets):
 Then plotting:
 
 ```python
+import matplotlib.pyplot as plt
 fig = plt.figure(figsize=(7,3))
 ax_lc = fig.add_subplot(121)
 ax_vi = fig.add_subplot(122)
