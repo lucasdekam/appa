@@ -60,12 +60,12 @@ subsets = [10, 110, 610, 1610, 2879]  # define size of each training set
 dft_forces = np.load('data/test.f.npy')
 dft_energy = np.load('data/test.e.npy')
 
-mace_lc = LearningCurve(dft_forces=dft_forces, dft_energy=dft_energy)
+mace_lc = LearningCurve()
 for i, size in enumerate(subsets):
     mace_lc.add_training_set(
         n_training_samples=size,
-        ml_forces=[np.load(f"models/test-{i:d}-{j:d}.f.npy") for j in seeds],
-        ml_energy=[np.load(f"models/test-{i:d}-{j:d}.e.npy") for j in seeds],
+        force_component_errors=[np.load(f"models/test-{i:d}-{j:d}.f.npy") - dft_forces for j in seeds],
+        energy_per_atom_errors=[np.load(f"models/test-{i:d}-{j:d}.e.npy") - dft_energy for j in seeds],
     )
 ```
 
@@ -101,4 +101,5 @@ mace_lc.make_learningcurve(
 fig.tight_layout()
 plt.show()
 ```
+
 

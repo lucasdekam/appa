@@ -8,28 +8,6 @@ import numpy as np
 from matplotlib.axes import Axes
 
 
-def subsample_errors(errors: np.ndarray, n_samples: int):
-    """
-    Subsample force errors for faster violin plot generation
-
-    Parameters
-    ----------
-    errors : np.ndarray
-        Array of errors (energy or force components), shape (n,)
-    n_samples : int
-        Number of samples to subsample
-
-    Returns
-    -------
-    np.ndarray
-        Subsampled array of errors, including min and max values
-    """
-    max_outlier = [np.max(errors)]
-    min_outlier = [np.min(errors)]
-    random_sample = np.random.choice(errors, size=n_samples, replace=True)
-    return np.concatenate([max_outlier, min_outlier, random_sample])
-
-
 class LearningCurve:
     """
     Tool to plot learning curves for machine learning interatomic potentials. In this context
@@ -45,20 +23,9 @@ class LearningCurve:
        |______________________
                         --> dataset size
 
-    Parameters
-    ----------
-    dft_forces : np.ndarray
-        DFT forces for the test set, shape (n_configs, n_atoms, 3)
-    dft_energy : np.ndarray
-        DFT energy for the test set, shape (n_configs,)
     """
 
-    def __init__(self, dft_forces: np.ndarray, dft_energy: np.ndarray):
-        self.n_atoms = dft_forces.shape[1]
-        # TODO: generalize for validation sets with different number of atoms per frame
-        # (accept list of np.ndarray for each config)
-        self.dft_forces = dft_forces
-        self.dft_energy = dft_energy
+    def __init__(self):
         self.training_set_sizes = []
         self.errors = {
             "force_component": [],
@@ -68,8 +35,8 @@ class LearningCurve:
     def add_training_set(
         self,
         n_training_samples: int,
-        ml_forces: List[np.ndarray],
-        ml_energy: List[np.ndarray],
+        force_component_errors: List[np.ndarray],
+        energy_per_atom_errors: List[np.ndarray],
     ):
         """
         Add a training set to the learning curve plot. One can specify a list of multiple
@@ -80,26 +47,24 @@ class LearningCurve:
         ----------
         n_training_samples : int
             Number of training samples used
-        ml_forces : List[np.ndarray]
-            List of ML forces for each model, shape (n_configs, n_atoms, 3).
-        ml_energy : List[np.ndarray]
-            List of ML energies for each model, shape (n_configs,)
+        force_component_errors : List[np.ndarray]
+            List of forces errors (eV/A) for each model, list of arrays of equal shape.
+        energy_per_atom_errors : List[np.ndarray]
+            List of energy errors (eV/atom) for each model, list of arrays of equal shape.
         """
-        assert len(ml_forces) == len(ml_energy)
-        assert isinstance(ml_forces, list)
-        assert isinstance(ml_energy, list)
+        assert len(force_component_errors) == len(energy_per_atom_errors)
+        assert isinstance(force_component_errors, list)
+        assert isinstance(energy_per_atom_errors, list)
 
         self.training_set_sizes.append(n_training_samples)
-        force_component_errors = []
-        energy_per_atom_errors = []
-        for ml_f, ml_e in zip(ml_forces, ml_energy):
-            f_err = np.array(ml_f - self.dft_forces).flatten() * 1e3  # meV/A
-            e_err = np.array(ml_e - self.dft_energy) / self.n_atoms * 1e3  # meV/atom
-            force_component_errors.append(f_err)
-            energy_per_atom_errors.append(e_err)
+        force_component_errors_per_set = []
+        energy_per_atom_errors_per_set = []
+        for f_err, e_err in zip(force_component_errors, energy_per_atom_errors):
+            force_component_errors_per_set.append(np.array(f_err).flatten())
+            energy_per_atom_errors_per_set.append(np.array(e_err).flatten())
 
-        self.errors["force_component"].append(force_component_errors)
-        self.errors["energy_per_atom"].append(energy_per_atom_errors)
+        self.errors["force_component"].append(force_component_errors_per_set)
+        self.errors["energy_per_atom"].append(energy_per_atom_errors_per_set)
 
     def make_violin(
         self,
@@ -140,11 +105,32 @@ class LearningCurve:
 
         # Find errors for each training set
         error_list = []
+        min_err = []
+        max_err = []
+        percentile_1 = []
+        percentile_2 = []
+
         for set_errors in self.errors[error_type]:
-            set_errors = np.array(set_errors).flatten()
+            set_errors = np.array(set_errors).flatten() * 1e3  # meV/A or meV/atom
+
+            # Find min and max errors
+            min_err.append(np.min(set_errors))
+            max_err.append(np.max(set_errors))
+
+            # Find first and last percentiles
+            if box_percentiles is not None:
+                pct1, pct2 = np.percentile(
+                    set_errors, [box_percentiles[0], box_percentiles[-1]]
+                )
+                percentile_1.append(pct1)
+                percentile_2.append(pct2)
 
             if n_subsampling:
-                set_errors = subsample_errors(set_errors, n_subsampling)
+                set_errors = np.random.choice(
+                    set_errors,
+                    size=n_subsampling,
+                    replace=True,
+                )
             error_list.append(set_errors)
 
         positions = np.arange(len(self.training_set_sizes)) + 1
@@ -164,14 +150,11 @@ class LearningCurve:
 
         # Add percentile box
         if box_percentiles is not None:
-            quartile1, _, quartile3 = np.percentile(
-                error_list, [box_percentiles[0], 50, box_percentiles[-1]], axis=1
+            axes.vlines(
+                positions, percentile_1, percentile_2, color="k", linestyle="-", lw=4
             )
-            axes.vlines(positions, quartile1, quartile3, color="k", linestyle="-", lw=5)
 
-        # Add error bars for min and max
-        min_err = np.min(error_list, axis=1)
-        max_err = np.max(error_list, axis=1)
+        # Add min/max lines
         axes.vlines(positions, min_err, max_err, color="k", linestyle="-", lw=1)
 
         if kwargs.get("x_tick_labels", None):
@@ -219,7 +202,9 @@ class LearningCurve:
         max_rmse = []
 
         for set_errors in self.errors[error_type]:
-            rmse = [np.sqrt(np.mean(model_err**2)) for model_err in set_errors]
+            rmse = [
+                np.sqrt(np.mean(model_err**2)) * 1e3 for model_err in set_errors
+            ]  # meV/A or meV/atom
             mean_rmse.append(np.mean(rmse))
             min_rmse.append(np.min(rmse))
             max_rmse.append(np.max(rmse))
