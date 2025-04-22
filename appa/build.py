@@ -272,6 +272,7 @@ class Interface:
             positions=coord,
             cell=new_cell,
             pbc=True,
+            constraint=electrode.constraints,
         )
 
         # Define the boundary for the water box
