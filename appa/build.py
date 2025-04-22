@@ -276,7 +276,10 @@ class Interface:
         )
 
         # Define the boundary for the water box
-        self.boundary = Boundary([[0, a], [0, b], [d_slab, d_slab + d_water]])
+        self.boundary = Boundary(
+            [[0, a], [0, b], [d_slab, d_slab + d_water]],
+            margin=[1, 1, 2],
+        )
         self.n_wat = calc_water_number(1.0, self.boundary.volume)
 
         # Define ions
