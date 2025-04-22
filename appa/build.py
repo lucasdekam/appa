@@ -11,6 +11,7 @@ from ase import Atoms, build, io, constraints
 from ase.cell import Cell
 from scipy import constants
 import mdapackmol
+from MDAnalysis import Universe
 
 
 def calc_number(rho: float, v: float, mol_mass: float) -> int:
@@ -181,9 +182,10 @@ class WaterBox:
         for symbol, boundary in self.ions.items():
             ion = Atoms(symbol, positions=[[0, 0, 0]])
             io.write("tmp.pdb", ion)
+            u = Universe("tmp.pdb")
             packmol_structures.append(
                 mdapackmol.PackmolStructure(
-                    ion,
+                    u,
                     number=1,
                     instructions=[
                         f"inside box {boundary.boundary_string}",
@@ -194,9 +196,10 @@ class WaterBox:
 
         water = build.molecule("H2O")
         io.write("tmp.pdb", water)
+        u = Universe("tmp.pdb")
         packmol_structures.append(
             mdapackmol.PackmolStructure(
-                water,
+                u,
                 number=self.n_wat,
                 instructions=[
                     f"inside box {self.boundary.boundary_string}",
