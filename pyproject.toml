@@ -14,7 +14,7 @@ license = { file = "LICENSE" }
 dependencies = [
     "ase>=3.22", 
     "numpy>=1.23",
-    "pymatgen>=2024.10.3",
+    "pymatgen",
 ]
 requires-python = ">=3.9"
 
