@@ -8,6 +8,45 @@ Miscellaneous code I use in my research.
 
 Icon by *rufftoon* on [DeviantArt](https://www.deviantart.com/rufftoon/art/Appa-Icon-46208689)
 
+## Building interfaces 
+The `appa.build` module builds simulation cells common in electrocatalysis research. For example, the `Electrode` class builds  fcc(111) electrode surfaces and allows for automated adding of hydrogen on top and fcc sites. 
+
+```python
+from appa.build import Electrode 
+electrode = Electrode(material="Pt", size=(3, 2, 4), a=3.94, fix_layers=2)
+electrode.add_hydrogens(coverage=0.66, topsite_probability=0.3)
+```
+
+The `ase.Atoms` object can be accessed as `electrode.atoms` for futher manipulation. 
+
+One can build an `Interface` with an electrode, water and ions as
+
+```python
+from appa.build import Interface
+interface = Interface(electrode=electrode.atoms, d_water=20, d_vacuum=15, ions={"Na": 4.5}, ion_delta_z=2.5)
+interface.write("interface.xyz")
+```
+
+The `Interface` class makes use of [mdapackmol](https://github.com/MDAnalysis/MDAPackmol) to pack the ions (here, between 4.5-2.5 A and 4.5+2.5 A from the surface) and water molecules (between the highest surface z-coordinate and d_water from the surface). To use this class you need to install [Packmol](https://m3g.github.io/packmol/) and MDAPackmol (which is most convenient on Linux).
+
+## Writing and loading Atoms with constraints
+
+The `Electrode.atoms` object uses `FixAtoms` constraints. To save and load these `Atoms` objects including their constraints, use
+
+```python 
+from appa.utils import write_with_fixatoms
+write_with_fixatoms("fix.xyz", atoms)
+```
+
+and 
+
+```python
+from appa.utils import load_with_fixatoms
+atoms = load_with_fixatoms("fix.xyz")
+```
+
+(this should really be integrated into ASE at some point).
+
 ## Setting up LAMMPS simulations
 The `appa.lammps` module sets up LAMMPS simulations with MACE (and could be extended for use with other interatomic potentials). Example:
 
