@@ -75,6 +75,7 @@ def read_with_fixatoms(
     if ignore_element is not None:
         indices = [a.index for a in atoms if a.symbol != ignore_element]
         atoms = atoms[indices]
-    fixed = atoms.arrays["fixed"]
-    atoms.set_constraint(FixAtoms(mask=fixed))
+    if "fixed" in atoms.arrays:
+        fixed = atoms.arrays["fixed"]
+        atoms.set_constraint(FixAtoms(mask=fixed))
     return atoms
