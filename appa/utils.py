@@ -27,18 +27,20 @@ def write_with_fixatoms(fname: str, atoms: Atoms, verbose=True, **kwargs):
     **kwargs
         Additional keyword arguments passed to the ASE `write` function.
     """
+    _atoms = atoms.copy()
     fix_atoms = None
-    for cstr in atoms.constraints:
+    for cstr in _atoms.constraints:
         if isinstance(cstr, FixAtoms):
             fix_atoms = cstr
             if verbose:
                 print(f"Constraint {fix_atoms} found, writing...")
             break
 
-    fixed = np.zeros(len(atoms), dtype=bool)
-    fixed[fix_atoms.index] = True
-    atoms.arrays["fixed"] = fixed
-    write(fname, atoms, **kwargs)
+    if fix_atoms is not None:
+        fixed = np.zeros(len(_atoms), dtype=bool)
+        fixed[fix_atoms.index] = True
+        _atoms.arrays["fixed"] = fixed
+    write(fname, _atoms, **kwargs)
 
 
 def read_with_fixatoms(
