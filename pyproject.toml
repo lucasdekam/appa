@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "appa"
 version = "0.0.1"
-description = "Appa makes you fly with machine learning molecular dynamics simulations."
+description = "Appa makes your machine learning molecular dynamics simulations fly."
 readme = "README.md"
 authors = [
     { name = "Lucas de Kam", email = "lucasdekam@gmail.com" }
