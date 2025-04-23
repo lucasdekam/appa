@@ -136,7 +136,8 @@ class WaterBox:
     boundary : Boundary
         Boundary object representing the water box.
     n_wat : Optional[int], optional
-        Number of water molecules. If not provided, it is calculated based on the boundary volume and water density.
+        Number of water molecules. If not provided, it is calculated based on the boundary
+        volume and water density.
     rho : float, optional
         Water density in g/cm^3, by default 1.0.
     ions : Optional[Dict[str, Boundary]], optional
@@ -301,7 +302,7 @@ class Interface:
                 margin=[1, 1, 0],
             )
 
-    def run(
+    def add_electrolyte(
         self,
         seed: int = -1,
         verbose: bool = False,
@@ -350,7 +351,7 @@ class Interface:
         verbose : bool, optional
             If True, keeps temporary files, by default False.
         """
-        self.run(seed=seed, verbose=verbose)
+        self.add_electrolyte(seed=seed, verbose=verbose)
         io.write(fname, self.atoms)
 
 
@@ -417,3 +418,41 @@ class Electrode:
                         offset=(i, j),
                         position=site,
                     )
+
+
+def add_cap(
+    atoms: Atoms, use_indices: list[int], z_position: float, element: str = "Ne"
+) -> None:
+    """
+    Add a cap layer to prevent electrolyte diffusion into the vacuum region.
+
+    Parameters
+    ----------
+    atoms : Atoms
+        The atomic structure to which the cap layer will be added.
+    use_indices : list[int]
+        Indices of atoms whose x,y positions will be used to define the cap layer.
+    z_position : float
+        The z-coordinate for the cap layer.
+    element : str, optional
+        Chemical symbol of the cap layer atoms, by default "Ne".
+    """
+    cap_pos = atoms.get_positions()[use_indices, :]
+    cap_pos[:, 2] = z_position
+    cap = Atoms(
+        symbols=element * len(use_indices),
+        positions=cap_pos,
+        cell=atoms.cell,
+    )
+    atoms += cap
+
+    for cstr in atoms.constraints:
+        if isinstance(cstr, constraints.FixAtoms):
+            fix_atoms = cstr
+            print(f"Constraint {fix_atoms} found, writing...")
+            break
+
+    old_fixed_indices = list(fix_atoms.index)
+    cap_indices = [a.index for a in atoms if a.symbol == element]
+    atoms.set_constraint()
+    atoms.set_constraint(constraints.FixAtoms(indices=old_fixed_indices + cap_indices))
