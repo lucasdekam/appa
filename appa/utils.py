@@ -9,7 +9,7 @@ from ase.constraints import FixAtoms
 from ase import Atoms
 
 
-def write_with_fixatoms(fname: str, atoms: Atoms, **kwargs):
+def write_with_fixatoms(fname: str, atoms: Atoms, verbose=True, **kwargs):
     """
     Write an Atoms object to a file, including fixed atom constraints.
 
@@ -31,7 +31,8 @@ def write_with_fixatoms(fname: str, atoms: Atoms, **kwargs):
     for cstr in atoms.constraints:
         if isinstance(cstr, FixAtoms):
             fix_atoms = cstr
-            print(f"Constraint {fix_atoms} found, writing...")
+            if verbose:
+                print(f"Constraint {fix_atoms} found, writing...")
             break
 
     fixed = np.zeros(len(atoms), dtype=bool)
@@ -70,7 +71,8 @@ def read_with_fixatoms(
     """
     atoms = read(fname, **kwargs)
     if ignore_element is not None:
-        atoms = Atoms([a for a in atoms if a.symbol != ignore_element])
+        indices = [a.index for a in atoms if a.symbol != ignore_element]
+        atoms = atoms[indices]
     fixed = atoms.arrays["fixed"]
     atoms.set_constraint(FixAtoms(mask=fixed))
     return atoms
