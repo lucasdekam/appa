@@ -10,8 +10,6 @@ import numpy as np
 from ase import Atoms, build, io, constraints
 from ase.cell import Cell
 from scipy import constants
-import mdapackmol
-from MDAnalysis import Universe
 
 
 def calc_number(rho: float, v: float, mol_mass: float) -> int:
@@ -118,102 +116,87 @@ class Boundary:
         return np.array2string(np.transpose(adjusted_boundary).flatten())[1:-1]
 
 
-class WaterBox:
+def packmol_waterbox(
+    boundary: Boundary,
+    ions: Optional[Dict[str, Boundary]] = None,
+    rho: float = 1.0,
+    seed: int = -1,
+    verbose: bool = False,
+    **kwargs,
+) -> Atoms:
     """
-    Represents a water box containing water molecules and optional additional structures.
-
-    Attributes
-    ----------
-    boundary : Boundary
-        Boundary object representing the water box.
-    n_wat : int
-        Number of water molecules.
-    ions : Dict[str, Boundary]
-        Dictionary of ion boundaries.
+    Generate a water box configuration with optional ions using Packmol.
 
     Parameters
     ----------
     boundary : Boundary
         Boundary object representing the water box.
-    n_wat : Optional[int], optional
-        Number of water molecules. If not provided, it is calculated based on the boundary
-        volume and water density.
-    rho : float, optional
-        Water density in g/cm^3, by default 1.0.
     ions : Optional[Dict[str, Boundary]], optional
         Dictionary of ion boundaries, by default None.
+    rho : float, optional
+        Water density in g/cm^3, by default 1.0.
+    seed : int, optional
+        Random seed for reproducibility, by default -1 (random behavior).
+    verbose : bool, optional
+        If True, keeps temporary files, by default False.
+    kwargs : dict, optional
+        Additional arguments for writing the output file.
+
+    Returns
+    -------
+    Atoms
+        The generated atomic structure containing water molecules and optional ions.
+        Does not include a cell.
     """
+    try:
+        import mdapackmol
+        from MDAnalysis import Universe
+    except ImportError as exc:
+        raise ImportError(
+            "The 'mdapackmol' and 'MDAnalysis' packages are required for this function."
+        ) from exc
 
-    def __init__(
-        self,
-        boundary: Boundary,
-        n_wat: Optional[int] = None,
-        rho: float = 1.0,
-        ions: Optional[Dict[str, Boundary]] = None,
-    ) -> None:
-        self.boundary = boundary
-        if n_wat is None:
-            n_wat = calc_water_number(rho, self.boundary.volume)
-        self.n_wat = n_wat
-        self.ions = ions if ions is not None else {}
-
-    def write(
-        self,
-        fname: str,
-        seed: int = -1,
-        verbose: bool = False,
-        **kwargs,
-    ) -> None:
-        """
-        Write the water box configuration to a file.
-
-        Parameters
-        ----------
-        fname : str
-            Output filename.
-        seed : int, optional
-            Random seed for reproducibility, by default -1 (random behavior).
-        verbose : bool, optional
-            If True, keeps temporary files, by default False.
-        kwargs : dict
-            Additional arguments for writing the file.
-        """
-        packmol_structures = []
-
-        for symbol, boundary in self.ions.items():
-            ion = Atoms(symbol, positions=[[0, 0, 0]])
-            io.write("tmp.pdb", ion)
-            u = Universe("tmp.pdb")
-            packmol_structures.append(
-                mdapackmol.PackmolStructure(
-                    u,
-                    number=1,
-                    instructions=[
-                        f"inside box {boundary.boundary_string}",
-                        f"seed {seed}",
-                    ],
-                )
-            )
-
-        water = build.molecule("H2O")
-        io.write("tmp.pdb", water)
+    def _get_packmol_structure(
+        atoms: Atoms, number: int, boundary: Boundary, seed: int
+    ):
+        io.write("tmp.pdb", atoms)
         u = Universe("tmp.pdb")
-        packmol_structures.append(
-            mdapackmol.PackmolStructure(
-                u,
-                number=self.n_wat,
-                instructions=[
-                    f"inside box {self.boundary.boundary_string}",
-                    f"seed {seed}",
-                ],
-            )
+        return mdapackmol.PackmolStructure(
+            u,
+            number=number,
+            instructions=[
+                f"inside box {boundary.boundary_string}",
+                f"seed {seed}",
+            ],
         )
 
-        system = mdapackmol.packmol(packmol_structures)
-        system.atoms.write(fname, **kwargs)
-        if not verbose:
-            os.remove("tmp.pdb")
-            os.remove("packmol.stdout")
+    if ions is None:
+        ions = {}
+
+    packmol_structures = []
+
+    for symbol, ion_boundary in ions.items():
+        ion = Atoms(symbol, positions=[[0, 0, 0]])
+        packmol_structures.append(_get_packmol_structure(ion, 1, ion_boundary, seed))
+
+    water = build.molecule("H2O")
+    packmol_structures.append(
+        _get_packmol_structure(
+            water,
+            calc_water_number(rho, boundary.volume),
+            boundary,
+            seed,
+        )
+    )
+
+    system = mdapackmol.packmol(packmol_structures)
+    system.atoms.write("waterbox.xyz", **kwargs)
+    return_atoms = io.read("waterbox.xyz")
+    if not verbose:
+        os.remove("tmp.pdb")
+        os.remove("packmol.stdout")
+        os.remove("waterbox.xyz")
+    return return_atoms
 
 
 class Interface:
@@ -252,6 +235,7 @@ class Interface:
         d_vacuum: float = 15.0,
         ions: Optional[Dict[str, float]] = None,
         ion_delta_z: float = 2.5,
+        rho: float = 1.0,
     ) -> None:
         # Adjust electrode coordinates and calculate slab thickness
         coord = electrode.get_positions()
@@ -281,26 +265,42 @@ class Interface:
             [[0, a], [0, b], [d_slab, d_slab + d_water]],
             margin=[1, 1, 2],
         )
-        self.n_wat = calc_water_number(1.0, self.boundary.volume)
+        self.rho = rho
 
         # Define ions
+        self.ion_boundary_dict = self._make_ion_boundary_dict(
+            a=a, b=b, d_slab=d_slab, ion_delta_z=ion_delta_z, ions=ions
+        )
+
+    def _make_ion_boundary_dict(
+        self,
+        a: float,
+        b: float,
+        d_slab: float,
+        ion_delta_z: float,
+        ions: Optional[Dict[str, float]] = None,
+    ) -> Dict[str, Boundary]:
         if ions is None:
             ions = {}
-        self.ions = {}
+
+        ion_boundary_dict = {}
         for symbol, distance in ions.items():
             if distance <= 2.5:
                 raise ValueError("Distance from surface must be greater than 2.5 Å.")
-            self.ions[symbol] = Boundary(
+            z_min = d_slab + distance - ion_delta_z
+            z_max = d_slab + distance + ion_delta_z
+            ion_boundary_dict[symbol] = Boundary(
                 [
                     [0, a],
                     [0, b],
                     [
-                        d_slab + distance - ion_delta_z,
-                        d_slab + distance + ion_delta_z,
+                        z_min,
+                        z_max,
                     ],
                 ],
                 margin=[1, 1, 0],
             )
+        return ion_boundary_dict
 
     def add_electrolyte(
         self,
@@ -322,9 +322,12 @@ class Interface:
         Atoms
             Combined structure with the water box and electrode.
         """
-        sol = WaterBox(self.boundary, n_wat=self.n_wat, ions=self.ions)
-        sol.write("waterbox.xyz", verbose=verbose, seed=seed)
-        waterbox = io.read("waterbox.xyz")
+        waterbox = packmol_waterbox(
+            self.boundary,
+            self.ion_boundary_dict,
+            self.rho,
+            seed,
+        )
         waterbox.cell = self.atoms.cell
         waterbox.pbc = True
 
@@ -455,3 +458,44 @@ def add_cap(
     cap_indices = [a.index for a in atoms if a.symbol == element]
     atoms.set_constraint()
     atoms.set_constraint(constraints.FixAtoms(indices=old_fixed_indices + cap_indices))
+
+
+def bulk_electrolyte(
+    cell: tuple[float, float, float],
+    rho: float = 1.0,
+    seed: int = -1,
+    ions: Optional[List[str]] = None,
+):
+    """
+    Generate a bulk electrolyte system with specified ions and density.
+
+    Parameters
+    ----------
+    cell : tuple[float, float, float]
+        Dimensions of the simulation cell as (x, y, z).
+    rho : float, optional
+        Density of the electrolyte in g/cm³. Default is 1.0.
+    seed : int, optional
+        Random seed for reproducibility. Default is -1 (no specific seed).
+    ions : List[str], optional
+        List of ion types to include in the electrolyte. Default is None.
+        Include ions multiple times if you want multiple ions of the same type
+        in the electrolyte.
+    """
+    if ions is None:
+        ions = []
+
+    boundary = Boundary(cell, margin=1.0)
+
+    ion_boundary_dict = {}
+    for ion in ions:
+        ion_boundary_dict[ion] = boundary
+
+    atoms = packmol_waterbox(
+        boundary=boundary,
+        ions=ion_boundary_dict,
+        rho=rho,
+        seed=seed,
+    )
+    atoms.cell = Cell.new(cell)
+    return atoms
