@@ -41,8 +41,8 @@ write_with_fixatoms("fix.xyz", atoms)
 and 
 
 ```python
-from appa.utils import load_with_fixatoms
-atoms = load_with_fixatoms("fix.xyz")
+from appa.utils import read_with_fixatoms
+atoms = read_with_fixatoms("fix.xyz")
 ```
 
 (this should really be integrated into ASE at some point).
