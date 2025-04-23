@@ -449,7 +449,6 @@ def add_cap(
     for cstr in atoms.constraints:
         if isinstance(cstr, constraints.FixAtoms):
             fix_atoms = cstr
-            print(f"Constraint {fix_atoms} found, writing...")
             break
 
     old_fixed_indices = list(fix_atoms.index)
