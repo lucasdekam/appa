@@ -292,7 +292,7 @@ class ArrayJob:
             Name of SLURM output file. Default: "logs/job_%A_%a.out"
             (uses %A for job ID and %a for array job ID).
         partition: str
-            Name of partition. Default: "gpu"
+            Name of partition. Default: "gpu_a100"
         nodes: int
             Number of nodes. Default: 1
         ntasks: int
@@ -308,7 +308,7 @@ class ArrayJob:
         --------
         >>> sims = [...] # define your simulations in a list
         >>> array_job = ArrayJob("results", sims)
-        >>> array_job.write_jobfile(job_name="my_job", time="1-00:00:00", partition="gpu")
+        >>> array_job.write_jobfile(job_name="my_job", time="1-00:00:00", partition="gpu_a100")
 
         Submit jobs with index 0 to 5 as follows:
         >>> sbatch jobfile.sh --array=0-5
@@ -316,7 +316,7 @@ class ArrayJob:
         sbatch_args = {
             "job_name": "batch_job",
             "output": "logs/job_%A_%a.out",
-            "partition": "gpu",
+            "partition": "gpu_a100",
             "nodes": 1,
             "ntasks": 1,
             "cpus_per_task": 18,
