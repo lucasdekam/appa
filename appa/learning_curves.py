@@ -176,6 +176,7 @@ class LearningCurve:
         axes: Axes,
         legend=True,
         error_type: Literal["force_component", "energy_per_atom="] = "force_component",
+        errorbar: bool = True,
         **kwargs,
     ):
         """
@@ -191,11 +192,6 @@ class LearningCurve:
             The type of error to plot (default is 'force_component').
         **kwargs : dict
             Additional keyword arguments passed to the plot function.
-
-        Returns
-        -------
-        eb : ErrorbarContainer
-            The error bar container object.
         """
         mean_rmse = []
         min_rmse = []
@@ -214,22 +210,23 @@ class LearningCurve:
         max_rmse = np.array(max_rmse)
 
         # Plot points at mean RMSE
-        eb = axes.plot(
+        axes.plot(
             self.training_set_sizes,
             mean_rmse,
             **kwargs,
         )
 
         # Make error bars for min/max
-        eb = axes.errorbar(
-            self.training_set_sizes,
-            mean_rmse,
-            yerr=[mean_rmse - min_rmse, max_rmse - mean_rmse],
-            fmt="none",  # Marker style
-            ecolor="black",  # Color of the error bars
-            capsize=5,  # Length of the error bar caps
-            zorder=100,
-        )
+        if errorbar:
+            axes.errorbar(
+                self.training_set_sizes,
+                mean_rmse,
+                yerr=[mean_rmse - min_rmse, max_rmse - mean_rmse],
+                fmt="none",  # Marker style
+                ecolor="black",  # Color of the error bars
+                capsize=5,  # Length of the error bar caps
+                zorder=100,
+            )
 
         axes.set_xlabel("Training set size")
         if error_type == "force_component":
@@ -238,5 +235,3 @@ class LearningCurve:
             axes.set_ylabel("RMSE / meV")
         if legend:
             axes.legend(frameon=False)
-
-        return eb
