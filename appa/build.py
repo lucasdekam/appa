@@ -332,8 +332,6 @@ class Interface:
         waterbox.pbc = True
 
         self.atoms += waterbox
-        if not verbose:
-            os.remove("waterbox.xyz")
         return self.atoms
 
     def write(
