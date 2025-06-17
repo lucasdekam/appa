@@ -2,22 +2,22 @@
 
 # Appa
 
-Miscellaneous code I use in my research. 
+Miscellaneous code I use in my research.
 
 (Appa is a pet flying bison in the series *Avatar: The Last Airbender*. He speeds up the journey of the Avatar by flying him and his friends around.)
 
 Icon by *rufftoon* on [DeviantArt](https://www.deviantart.com/rufftoon/art/Appa-Icon-46208689)
 
-## Building interfaces 
-The `appa.build` module builds simulation cells common in electrocatalysis research. For example, the `Electrode` class builds  fcc(111) electrode surfaces and allows for automated adding of hydrogen on top and fcc sites. 
+## Building interfaces
+The `appa.build` module builds simulation cells common in electrocatalysis research. For example, the `Electrode` class builds  fcc(111) electrode surfaces and allows for automated adding of hydrogen on top and fcc sites.
 
 ```python
-from appa.build import Electrode 
+from appa.build import Electrode
 electrode = Electrode(material="Pt", size=(3, 2, 4), a=3.94, fix_layers=2)
 electrode.add_hydrogens(coverage=0.66, topsite_probability=0.3)
 ```
 
-The `ase.Atoms` object can be accessed as `electrode.atoms` for futher manipulation. 
+The `ase.Atoms` object can be accessed as `electrode.atoms` for futher manipulation.
 
 One can build an `Interface` with an electrode, water and ions as
 
@@ -33,12 +33,12 @@ The `Interface` class makes use of [mdapackmol](https://github.com/MDAnalysis/MD
 
 The `Electrode.atoms` object uses `FixAtoms` constraints. To save and load these `Atoms` objects including their constraints, use
 
-```python 
+```python
 from appa.utils import write_with_fixatoms
 write_with_fixatoms("fix.xyz", atoms)
 ```
 
-and 
+and
 
 ```python
 from appa.utils import read_with_fixatoms
@@ -84,61 +84,15 @@ sbatch jobfile.sh --array=0-1
 ```
 
 
-## Learning curves
-The `appa.learning_curves` module contains tools to plot learning curves for machine learning interatomic potentials. In this context a learning curve plot shows the test error of the model against the training set size. For all data points the model should be fully trained. (These learning curves are not to be confused with test/train error vs. #epochs curves obtained from training one model). See also fig. 2e of [this paper](https://arxiv.org/pdf/2404.12367). Example:
+## Writing CP2K input files
+The `appa.cp2k` module contains tools to write CP2K input files. The DFT settings are usually fixed for a given project, and are written in a `params.yaml` file. The DFT section in this file has a similar structure to the dictionaries that can be read and written by [cp2k-input-tools](https://github.com/cp2k/cp2k-input-tools). The `params.yaml` file also specifies what basis sets and pseudopotentials are used for the different elements that might appear in configurations. The function `read_params` reads the YAML parameter file, and `write_input` writes a `coord.xyz` and `input.inp` file to the specified directory.
 
 ```python
-from appa.learning_curves import LearningCurve 
-import numpy as np
+from appa.cp2k import read_params, write_input
+from ase.io import read
 
-seeds = range(3)  # define seeds with which different models are trained
-# (even better would be to subsample different training sets)
-subsets = [10, 110, 610, 1610, 2879]  # define size of each training set
-
-# load 'true' forces and energy on test set
-dft_forces = np.load('data/test.f.npy')
-dft_energy = np.load('data/test.e.npy')
-
-mace_lc = LearningCurve()
-for i, size in enumerate(subsets):
-    mace_lc.add_training_set(
-        n_training_samples=size,
-        force_component_errors=[np.load(f"models/test-{i:d}-{j:d}.f.npy") - dft_forces for j in seeds],
-        energy_per_atom_errors=[np.load(f"models/test-{i:d}-{j:d}.e.npy") - dft_energy for j in seeds],
-    )
+params = read_params("examples/cp2k_params.yaml")
+params['dft']['+mgrid']['cutoff'] = 500
+atoms = read('coords.xyz')
+write_input("results", atoms, params)
 ```
-
-Then plotting:
-
-```python
-import matplotlib.pyplot as plt
-fig = plt.figure(figsize=(7,3))
-ax_lc = fig.add_subplot(121)
-ax_vi = fig.add_subplot(122)
-
-style = dict(
-    color="#f52f2f",
-    label="mace",
-    marker="o",
-    markersize=7,
-    fillstyle="full",
-)
-
-mace_lc.make_violin(
-    ax_vi, 
-    error_type="force_component",
-    face_color=style["color"],
-    n_subsampling=10000,
-)
-
-mace_lc.make_learningcurve(
-    ax_lc,
-    error_type="force_component",
-    **style,
-)
-
-fig.tight_layout()
-plt.show()
-```
-
-
