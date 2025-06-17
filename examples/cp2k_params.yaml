@@ -1,0 +1,70 @@
+dft:
+  +mgrid:
+    cutoff: 1000.0  # converge manually
+    ngrids: 4
+    rel_cutoff: 40.0
+  +qs:
+    eps_default: 1.0e-13  # smaller than default
+    extrapolation: aspc
+    extrapolation_order: 2
+    method: gpw
+  +scf:
+    +diagonalization:
+      algorithm: standard
+    +mixing:
+      method: broyden_mixing
+      alpha: 0.1
+      beta: 1.5
+      nbuffer: 8
+    +smear:
+      _: true
+      electronic_temperature: 300.0
+      method: fermi_dirac
+    added_mos: 500
+    cholesky: inverse
+    eps_scf: 3.0e-07
+    max_scf: 500
+  +xc:
+    +vdw_potential:
+      +pair_potential:
+        parameter_file_name: /home/lucas/cp2k-data/dftd3.dat
+        reference_functional: RPBE
+        type: dftd3
+      potential_type: pair_potential
+    +xc_functional:
+      +gga_c_pbe: {}
+      +gga_x_rpbe: {}
+    +xc_grid:
+      xc_deriv: nn50_smooth
+      xc_smooth_rho: nn50
+  basis_set_file_name: /home/lucas/cp2k-data/BASIS_MOLOPT
+  charge: 0
+  potential_file_name: /home/lucas/cp2k-data/GTH_POTENTIALS
+  surf_dip_dir: z
+  surface_dipole_correction: true
+global:
+  extended_fft_lengths: true
+  print_level: medium
+  run_type: energy_force
+kinds:
+  Cs:
+    basis_set: DZVP-MOLOPT-SR-GTH
+    potential: GTH-PBE-q9
+  H:
+    basis_set: DZVP-MOLOPT-SR-GTH
+    potential: GTH-PBE-q1
+  K:
+    basis_set: DZVP-MOLOPT-SR-GTH
+    potential: GTH-PBE-q9
+  Li:
+    basis_set: DZVP-MOLOPT-SR-GTH
+    potential: GTH-PBE-q3
+  Na:
+    basis_set: DZVP-MOLOPT-SR-GTH
+    potential: GTH-PBE-q9
+  O:
+    basis_set: DZVP-MOLOPT-SR-GTH
+    potential: GTH-PBE-q6
+  Pt:
+    basis_set: DZVP-A5-Q10-323-MOL-T1-DERIVED_SET-1
+    potential: GTH-PBE-q10
