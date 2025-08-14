@@ -17,9 +17,9 @@ LOGS_STAGENAME = "Optional logging settings"
 RUNN_STAGENAME = "Running"
 SNELLIUS_LAMMPS_MODULES = [
     "2023",
-    "CUDA/12.1.1",
+    "OpenMPI/4.1.5-GCC-12.3.0",
     "imkl/2023.1.0",
-    "OpenMPI/4.1.5-NVHPC-24.5-CUDA-12.1.1",
+    "PLUMED/2.9.0-foss-2023a",
 ]
 
 
@@ -67,7 +67,9 @@ class AtomisticSimulation(LammpsInputFile):
         )
 
     def set_potential(
-        self, model_file: os.PathLike, architecture: Literal["mace"] = "mace"
+        self,
+        model_file: os.PathLike,
+        architecture: Literal["mlmace", "mace-mliap"] = "mace-mliap",
     ):
         """
         Define commands for the interatomic potential (force field).
@@ -76,14 +78,14 @@ class AtomisticSimulation(LammpsInputFile):
         ----------
         model_file : os.PathLike
             Path to the coefficients file for the potential.
-        architecture : {'mace'}, optional
-            Type of architecture for the potential. Default is 'mace'.
+        architecture : {'mlmace', 'mace-mliap'}, optional
+            Type of architecture for the potential. Default is 'mace-mliap'.
 
         Examples
         --------
         >>> sim.set_potential(model_file="my_potential.lammps.pt")
         """
-        if architecture == "mace":
+        if architecture == "mlmace":
             formatted_symbols = " ".join(self.species)
             self.add_commands(
                 stage_name=INIT_STAGENAME,
@@ -96,10 +98,21 @@ class AtomisticSimulation(LammpsInputFile):
                     f"pair_coeff * * {model_file} {formatted_symbols}",
                 ],
             )
-        else:
-            raise NotImplementedError(
-                f"Architecture {architecture} has not been implemented: only 'mace' is supported."
+        elif architecture == "mace-mliap":
+            formatted_symbols = " ".join(self.species)
+            self.add_commands(
+                stage_name=INIT_STAGENAME,
+                commands=["atom_modify map yes", "newton on"],
             )
+            self.add_stage(
+                stage_name=POTL_STAGENAME,
+                commands=[
+                    f"pair_style mliap unified {model_file} 0",
+                    f"pair_coeff * * {formatted_symbols}",
+                ],
+            )
+        else:
+            raise NotImplementedError(f"Architecture {architecture} is not recognized.")
 
     def set_molecular_dynamics(
         self,
@@ -262,7 +275,7 @@ class ArrayJob:
     def write_jobfile(  # pylint: disable=dangerous-default-value
         self,
         modules: Optional[list] = SNELLIUS_LAMMPS_MODULES,
-        lmp_executable="~/lammps/build-a100/lmp -k on g 1 -sf kk",
+        lmp_executable="~/lammps/build-a100-plumed/lmp -k on g 1 -sf kk -pk kokkos newton on neigh half",
         **kwargs,
     ):
         """
@@ -278,9 +291,11 @@ class ArrayJob:
             List of modules to load in the job script. Default are modules used to run LAMMPS
             with GPU on Snellius.
         lmp_executable : str, optional
-            Command to run LAMMPS. Default is "~/lammps/build-a100/lmp -k on g 1 -sf kk".
+            Command to run LAMMPS. Default is the command for MACE-MLIAP.
             The code then adds 'srun' before this command and '-in input.lmp', the default input
             file name, after the command.
+            MLMACE: ~/lammps/build-a100/lmp -k on g 1 -sf kk
+            MACE-MLIAP: ~/lammps/build-a100-plumed/lmp -k on g 1 -sf kk -pk kokkos newton on neigh half
 
         Other Parameters
         ----------------
