@@ -15,12 +15,6 @@ POTL_STAGENAME = "Define interatomic potential"
 MDYN_STAGENAME = "Molecular dynamics setup"
 LOGS_STAGENAME = "Optional logging settings"
 RUNN_STAGENAME = "Running"
-SNELLIUS_LAMMPS_MODULES = [
-    "2023",
-    "OpenMPI/4.1.5-GCC-12.3.0",
-    "imkl/2023.1.0",
-    "PLUMED/2.9.0-foss-2023a",
-]
 
 
 class AtomisticSimulation(LammpsInputFile):
@@ -118,6 +112,7 @@ class AtomisticSimulation(LammpsInputFile):
         self,
         temperature: int = 300,
         timestep: float = 0.0005,
+        fixed_atoms: Optional[list[int]] = None,
         **kwargs,
     ):
         """
@@ -138,14 +133,8 @@ class AtomisticSimulation(LammpsInputFile):
             Skin distance for neighbor list construction. Default is 2.0.
         seed : int, optional
             Seed for velocity initialization. Default is 1.
-        dump_freq : int, optional
-            Frequency of dump file output. Default is 10.
-        dump_name : str, optional
-            Name of the dump file. Default is "lammps.dump".
         neigh_modify : int, optional
             After how many steps to re-calculate the neighbor list. Default: 10
-        thermo_freq : int, optional
-            How often to print thermo information to the log file. Default: 10
 
         TODO: move logging settings to a separate method.
 
@@ -156,31 +145,60 @@ class AtomisticSimulation(LammpsInputFile):
         damping = kwargs.get("damping", 100 * timestep)
         skin = kwargs.get("skin", 2.0)
         seed = kwargs.get("seed", 1)
-        dump_freq = kwargs.get("dump_freq", 10)
-        dump_name = kwargs.get("dump_name", "lammps.dump")
         neigh_modify = kwargs.get("neigh_modify", 10)
-        thermo_freq = kwargs.get("thermo_freq", 10)
 
-        formatted_symbols = " ".join(self.species)
+        commands = [
+            f"velocity all create {temperature} {seed}",
+            f"velocity all scale {temperature}",
+            f"neighbor {skin:.1f} bin",
+            f"neigh_modify every {neigh_modify}",
+            f"timestep {timestep}",
+            f"fix nvt_fix all nvt temp {temperature} {temperature} {damping}",
+        ]
+
+        if fixed_atoms is not None:
+            fixed_atoms_one_based = [i + 1 for i in fixed_atoms]
+            group_command = "group fixed_group id " + " ".join(
+                map(str, fixed_atoms_one_based)
+            )
+            commands += [
+                group_command,
+                "fix freeze_fix fixed_group setforce 0.0 0.0 0.0",
+                "velocity fixed_group set 0.0 0.0 0.0",
+            ]
 
         self.add_stage(
             stage_name=MDYN_STAGENAME,
-            commands=[
-                f"velocity all create {temperature} {seed}",
-                f"velocity all scale {temperature}",
-                f"neighbor {skin:.1f} bin",
-                f"neigh_modify every {neigh_modify}",
-                f"timestep {timestep}",
-                f"fix thermo_fix all nvt temp {temperature} {temperature} {damping}",
-                f"thermo {thermo_freq}",
-                "thermo_style custom step pe ke etotal temp",
-                "thermo_modify format float %15.7f",
-                (
-                    f"dump dump_1 all custom {dump_freq} {dump_name} "
-                    "id type element xu yu zu fx fy fz vx vy vz"
-                ),
-                f"dump_modify dump_1 element {formatted_symbols} sort id",
-            ],
+            commands=commands,
+        )
+
+    def set_output(
+        self,
+        log_freq: int = 20,
+        dump_freq: int = 20,
+        dump_name: str = "lammps.dump",
+    ):
+        """
+        Parameters
+        ----------
+        log_freq : int, optional
+            How often to print thermo information to the log file. Default: 20
+        dump_freq : int = 20
+            Frequency of dump file output
+        dump_name : str = "lammps.dump"
+            Name of the dump file
+        """
+        formatted_symbols = " ".join(self.species)
+        commands = [
+            f"thermo {log_freq}",
+            "thermo_style custom step pe ke etotal temp",
+            "thermo_modify format float %15.7f",
+            f"dump dump_1 all custom {dump_freq} {dump_name} id type element xu yu zu vx vy vz",
+            f"dump_modify dump_1 element {formatted_symbols} sort id",
+        ]
+        self.add_stage(
+            stage_name=LOGS_STAGENAME,
+            commands=commands,
         )
 
     def set_run(
@@ -271,91 +289,3 @@ class ArrayJob:
         for identifier, sim in self.simulations.items():
             results_dir = os.path.join(self.working_directory, f"task_{identifier:06d}")
             sim.write_inputs(results_dir)
-
-    def write_jobfile(  # pylint: disable=dangerous-default-value
-        self,
-        modules: Optional[list] = SNELLIUS_LAMMPS_MODULES,
-        lmp_executable="~/lammps/build-a100-plumed/lmp -k on g 1 -sf kk -pk kokkos newton on neigh half",
-        **kwargs,
-    ):
-        """
-        Write a SLURM job file for running the simulations.
-
-        This function generates a SLURM job script that can be used to submit a batch job
-        for running multiple atomistic simulations. The job script includes necessary
-        SBATCH directives, module loading commands, and the execution command for LAMMPS.
-
-        Parameters
-        ----------
-        modules : list, optional
-            List of modules to load in the job script. Default are modules used to run LAMMPS
-            with GPU on Snellius.
-        lmp_executable : str, optional
-            Command to run LAMMPS. Default is the command for MACE-MLIAP.
-            The code then adds 'srun' before this command and '-in input.lmp', the default input
-            file name, after the command.
-            MLMACE: ~/lammps/build-a100/lmp -k on g 1 -sf kk
-            MACE-MLIAP: ~/lammps/build-a100-plumed/lmp -k on g 1 -sf kk -pk kokkos newton on neigh half
-
-        Other Parameters
-        ----------------
-        Additional SBATCH arguments. Can be disabled by setting to None. Underscores in
-        the parameter names are replaced by dashes if necessary.
-        job_name: str
-            Name of the job. Default: "batch_job"
-        output: str
-            Name of SLURM output file. Default: "logs/job_%A_%a.out"
-            (uses %A for job ID and %a for array job ID).
-        partition: str
-            Name of partition. Default: "gpu_a100"
-        nodes: int
-            Number of nodes. Default: 1
-        ntasks: int
-            Number of parallel tasks. Default: 1
-        cpus_per_task: int
-            Number of CPUs per task. Default: 18
-        gpus: int
-            Number of GPUs used. Default: 1
-        time: str
-            String specifying maximum runtime in (d-)hh:mm:ss. Default: "01:00:00"
-
-        Examples
-        --------
-        >>> sims = [...] # define your simulations in a list
-        >>> array_job = ArrayJob("results", sims)
-        >>> array_job.write_jobfile(job_name="my_job", time="1-00:00:00", partition="gpu_a100")
-
-        Submit jobs with index 0 to 5 as follows:
-        >>> sbatch jobfile.sh --array=0-5
-        """
-        sbatch_args = {
-            "job_name": "batch_job",
-            "output": "logs/job_%A_%a.out",
-            "partition": "gpu_a100",
-            "nodes": 1,
-            "ntasks": 1,
-            "cpus_per_task": 18,
-            "gpus": 1,
-            "time": "01:00:00",
-        }
-        sbatch_args.update(kwargs)
-
-        jobfile_content = "#!/bin/bash\n"
-        for key, value in sbatch_args.items():
-            if value is not None:
-                sbatch_key = key.replace("_", "-")
-                jobfile_content += f"#SBATCH --{sbatch_key}={value}\n"
-        jobfile_content += "\n"
-
-        if modules:
-            for module in modules:
-                jobfile_content += f"module load {module}\n"
-
-        jobfile_content += f"""
-FOLDER_PATH="{self.working_directory}/task_$(printf '%06d' $SLURM_ARRAY_TASK_ID)"
-cd $FOLDER_PATH
-srun {lmp_executable} -in input.lmp
-"""
-
-        with open("jobfile.sh", "w", encoding="utf-8") as jobfile:
-            jobfile.write(jobfile_content)
