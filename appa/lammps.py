@@ -148,23 +148,30 @@ class AtomisticSimulation(LammpsInputFile):
         neigh_modify = kwargs.get("neigh_modify", 10)
 
         commands = [
-            f"velocity all create {temperature} {seed}",
-            f"velocity all scale {temperature}",
             f"neighbor {skin:.1f} bin",
             f"neigh_modify every {neigh_modify}",
             f"timestep {timestep}",
-            f"fix nvt_fix all nvt temp {temperature} {temperature} {damping}",
         ]
 
         if fixed_atoms is not None:
             fixed_atoms_one_based = [i + 1 for i in fixed_atoms]
-            group_command = "group fixed_group id " + " ".join(
+            fixed_group_cmd = "group fixed_group id " + " ".join(
                 map(str, fixed_atoms_one_based)
             )
             commands += [
-                group_command,
+                fixed_group_cmd,
                 "fix freeze_fix fixed_group setforce 0.0 0.0 0.0",
                 "velocity fixed_group set 0.0 0.0 0.0",
+                "group mobile subtract all fixed_group",
+                f"velocity mobile create {temperature} {seed}",
+                f"velocity mobile scale {temperature}",
+                f"fix nvt_fix mobile nvt temp {temperature} {temperature} {damping}",
+            ]
+        else:
+            commands += [
+                f"velocity all create {temperature} {seed}",
+                f"velocity all scale {temperature}",
+                f"fix nvt_fix all nvt temp {temperature} {temperature} {damping}",
             ]
 
         self.add_stage(
