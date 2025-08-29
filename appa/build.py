@@ -201,7 +201,10 @@ def packmol_waterbox(
     if not verbose:
         os.remove(tmp_pdb)
         os.remove(out_xyz)
-        os.remove("packmol.stdout")
+        try:
+            os.remove("packmol.stdout")
+        except FileNotFoundError:
+            pass
     return return_atoms
 
 
