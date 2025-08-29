@@ -3,7 +3,6 @@ Tools for building electrochemical interfaces.
 """
 
 import os
-import uuid
 from typing import Dict, List, Optional, Union
 import random
 
@@ -158,9 +157,8 @@ def packmol_waterbox(
         ) from exc
 
     # Generate a unique random ID for file naming
-    uid = uuid.uuid4().hex
-    tmp_pdb = f"tmp_{uid}.pdb"
-    out_xyz = f"waterbox_{uid}.xyz"
+    tmp_pdb = f"tmp.pdb"
+    out_xyz = f"waterbox.xyz"
 
     def _get_packmol_structure(
         atoms: Atoms, number: int, boundary: Boundary, seed: int
