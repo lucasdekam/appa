@@ -3,6 +3,7 @@ Tools for building electrochemical interfaces.
 """
 
 import os
+import uuid
 from typing import Dict, List, Optional, Union
 import random
 
@@ -156,11 +157,16 @@ def packmol_waterbox(
             "The 'mdapackmol' and 'MDAnalysis' packages are required for this function."
         ) from exc
 
+    # Generate a unique random ID for file naming
+    uid = uuid.uuid4().hex
+    tmp_pdb = f"tmp_{uid}.pdb"
+    out_xyz = f"waterbox_{uid}.xyz"
+
     def _get_packmol_structure(
         atoms: Atoms, number: int, boundary: Boundary, seed: int
     ):
-        io.write("tmp.pdb", atoms)
-        u = Universe("tmp.pdb")
+        io.write(tmp_pdb, atoms)
+        u = Universe(tmp_pdb)
         return mdapackmol.PackmolStructure(
             u,
             number=number,
@@ -190,12 +196,12 @@ def packmol_waterbox(
     )
 
     system = mdapackmol.packmol(packmol_structures)
-    system.atoms.write("waterbox.xyz", **kwargs)
-    return_atoms = io.read("waterbox.xyz")
+    system.atoms.write(out_xyz, **kwargs)
+    return_atoms = io.read(out_xyz)
     if not verbose:
-        os.remove("tmp.pdb")
+        os.remove(tmp_pdb)
+        os.remove(out_xyz)
         os.remove("packmol.stdout")
-        os.remove("waterbox.xyz")
     return return_atoms
 
 
