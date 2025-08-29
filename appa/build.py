@@ -502,4 +502,5 @@ def bulk_electrolyte(
         seed=seed,
     )
     atoms.cell = Cell.new(cell)
+    atoms.set_pbc(True)
     return atoms
