@@ -45,10 +45,10 @@ from appa.utils import read_with_fixatoms
 atoms = read_with_fixatoms("fix.xyz")
 ```
 
-(this should really be integrated into ASE at some point).
+Currently, only writing one structure is supported (todo: make it work for a list of `Atoms` objects).
 
 ## Setting up LAMMPS simulations
-The `appa.lammps` module sets up LAMMPS simulations with MACE (and could be extended for use with other interatomic potentials). Example:
+The `appa.lammps` module sets up LAMMPS simulations with MACE or GRACE (and could be extended for use with other interatomic potentials). Example:
 
 ```python
 from appa.lammps import AtomisticSimulation, ArrayJob
@@ -72,17 +72,16 @@ sim2.set_run(n_steps=2000000)
 sims = [sim1, sim2]
 
 # Write input files to submit as a batch job
-job = ArrayJob("results", sims)
-job.write_inputs()
-job.write_jobfile()
+write_array_job_inputs(directory="results", simulations=sims, folder_name="mytask")
 ```
 
-Then you can submit the two simulations (indices 0 to 1) as an array job:
+This will write LAMMPS input and LAMMPS `.data` to `results/mytask_000` and `results/mytask_001`. 
+
+Then you can submit the two simulations (indices 0 to 1) using an appropriate array job as in `examples/lammps-array-job`:
 
 ```bash
-sbatch jobfile.sh --array=0-1
+sbatch jobfile --array=0-1
 ```
-
 
 ## Writing CP2K input files
 The `appa.cp2k` module contains tools to write CP2K input files. The DFT settings are usually fixed for a given project, and are written in a `params.yaml` file. The DFT section in this file has a similar structure to the dictionaries that can be read and written by [cp2k-input-tools](https://github.com/cp2k/cp2k-input-tools). The `params.yaml` file also specifies what basis sets and pseudopotentials are used for the different elements that might appear in configurations. The function `read_params` reads the YAML parameter file, and `write_input` writes a `coord.xyz` and `input.inp` file to the specified directory.
@@ -96,3 +95,12 @@ params['dft']['+mgrid']['cutoff'] = 500
 atoms = read('coords.xyz')
 write_input("results", atoms, params)
 ```
+
+## Todo
+
+Writing CLI utilities, such as 
+
+* Building structures 
+* Setting up a (modular) active learning MD with ASE 
+* Converting `lammps.dump` into a binary format like XTC
+* Performing analysis of trained models, like parity plots

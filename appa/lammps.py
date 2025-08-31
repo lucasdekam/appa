@@ -63,7 +63,7 @@ class AtomisticSimulation(LammpsInputFile):
     def set_potential(
         self,
         model_file: os.PathLike,
-        architecture: Literal["mlmace", "mace-mliap"] = "mace-mliap",
+        architecture: Literal["mlmace", "mace-mliap", "grace"] = "mace-mliap",
     ):
         """
         Define commands for the interatomic potential (force field).
@@ -71,16 +71,17 @@ class AtomisticSimulation(LammpsInputFile):
         Parameters
         ----------
         model_file : os.PathLike
-            Path to the coefficients file for the potential.
-        architecture : {'mlmace', 'mace-mliap'}, optional
+            Path to the potential model file.
+        architecture : {'mlmace', 'mace-mliap', 'grace'}
             Type of architecture for the potential. Default is 'mace-mliap'.
 
         Examples
         --------
         >>> sim.set_potential(model_file="my_potential.lammps.pt")
         """
+        formatted_symbols = " ".join(self.species)
+
         if architecture == "mlmace":
-            formatted_symbols = " ".join(self.species)
             self.add_commands(
                 stage_name=INIT_STAGENAME,
                 commands=["atom_modify map yes", "newton on"],
@@ -93,7 +94,6 @@ class AtomisticSimulation(LammpsInputFile):
                 ],
             )
         elif architecture == "mace-mliap":
-            formatted_symbols = " ".join(self.species)
             self.add_commands(
                 stage_name=INIT_STAGENAME,
                 commands=["atom_modify map yes", "newton on"],
@@ -103,6 +103,14 @@ class AtomisticSimulation(LammpsInputFile):
                 commands=[
                     f"pair_style mliap unified {model_file} 0",
                     f"pair_coeff * * {formatted_symbols}",
+                ],
+            )
+        elif architecture == "grace":
+            self.add_stage(
+                stage_name=POTL_STAGENAME,
+                commands=[
+                    f"pair_style grace pad_verbose",
+                    f"pair_coeff * * {model_file} {formatted_symbols}",
                 ],
             )
         else:
@@ -136,8 +144,6 @@ class AtomisticSimulation(LammpsInputFile):
         neigh_modify : int, optional
             After how many steps to re-calculate the neighbor list. Default: 10
 
-        TODO: move logging settings to a separate method.
-
         Examples
         --------
         >>> sim.set_molecular_dynamics(temperature=500, timestep=0.001, seed=42)
@@ -163,14 +169,12 @@ class AtomisticSimulation(LammpsInputFile):
                 "fix freeze_fix fixed_group setforce 0.0 0.0 0.0",
                 "velocity fixed_group set 0.0 0.0 0.0",
                 "group mobile subtract all fixed_group",
-                f"velocity mobile create {temperature} {seed}",
-                f"velocity mobile scale {temperature}",
+                f"velocity mobile create {temperature} {seed} mom yes rot no",
                 f"fix nvt_fix mobile nvt temp {temperature} {temperature} {damping}",
             ]
         else:
             commands += [
-                f"velocity all create {temperature} {seed}",
-                f"velocity all scale {temperature}",
+                f"velocity mobile create {temperature} {seed} mom yes rot no",
                 f"fix nvt_fix all nvt temp {temperature} {temperature} {damping}",
             ]
 
@@ -199,7 +203,7 @@ class AtomisticSimulation(LammpsInputFile):
         commands = [
             f"thermo {log_freq}",
             "thermo_style custom step pe ke etotal temp",
-            "thermo_modify format float %15.7f",
+            "thermo_modify format float %15.5f",
             f"dump dump_1 all custom {dump_freq} {dump_name} id type element xu yu zu vx vy vz",
             f"dump_modify dump_1 element {formatted_symbols} sort id",
         ]
@@ -271,28 +275,11 @@ class AtomisticSimulation(LammpsInputFile):
         self.write_file(input_path)
 
 
-class ArrayJob:
-    """
-    A class to set up array jobs for atomistic simulations.
-
-    Parameters
-    ----------
-    working_directory : os.PathLike
-        The directory where the simulation tasks will be executed.
-    simulations : list of AtomisticSimulation
-        A list of atomistic simulations to be submitted by the batch job.
-    """
-
-    def __init__(
-        self, working_directory: os.PathLike, simulations: list[AtomisticSimulation]
-    ):
-        self.working_directory = working_directory
-        self.simulations = dict(enumerate(simulations))
-
-    def write_inputs(self):
-        """
-        Write input files for each simulation in the batch job.
-        """
-        for identifier, sim in self.simulations.items():
-            results_dir = os.path.join(self.working_directory, f"task_{identifier:06d}")
-            sim.write_inputs(results_dir)
+def write_array_job_inputs(
+    directory: os.PathLike,
+    simulations: list[AtomisticSimulation],
+    folder_name: str = "task",
+):
+    for identifier, sim in enumerate(simulations):
+        results_dir = os.path.join(directory, f"{folder_name}_{identifier:03d}")
+        sim.write_inputs(results_dir)
