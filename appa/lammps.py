@@ -13,7 +13,7 @@ INIT_STAGENAME = "Initialization"
 READ_STAGENAME = "Define simulation box"
 POTL_STAGENAME = "Define interatomic potential"
 MDYN_STAGENAME = "Molecular dynamics setup"
-LOGS_STAGENAME = "Optional logging settings"
+LOGS_STAGENAME = "Logging and dump settings"
 RUNN_STAGENAME = "Running"
 
 
@@ -199,6 +199,8 @@ class AtomisticSimulation(LammpsInputFile):
             Frequency of dump file output
         dump_name : str = "lammps.dump"
             Name of the dump file
+        forces : bool = False
+            Whether to include force components in the dump file
         """
         formatted_symbols = " ".join(self.species)
         commands = [

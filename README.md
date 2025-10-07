@@ -61,12 +61,14 @@ atoms = read("path/to/myatoms.xyz")
 sim1 = AtomisticSimulation(atoms)
 sim1.set_potential("path/to/my_potential.lammps.pt")
 sim1.set_molecular_dynamics(temperature=330, timestep=0.0005)
+sim1.set_output()
 sim1.set_run(n_steps=2000000)
 
 # Setup another simulation
 sim2 = AtomisticSimulation(atoms)
 sim2.set_potential("path/to/another_potential.lammps.pt")
 sim2.set_molecular_dynamics(temperature=330, timestep=0.0005)
+sim2.set_output(forces=True)
 sim2.set_run(n_steps=2000000)
 
 sims = [sim1, sim2]
