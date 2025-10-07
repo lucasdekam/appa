@@ -174,7 +174,7 @@ class AtomisticSimulation(LammpsInputFile):
             ]
         else:
             commands += [
-                f"velocity mobile create {temperature} {seed} mom yes rot no",
+                f"velocity all create {temperature} {seed} mom yes rot no",
                 f"fix nvt_fix all nvt temp {temperature} {temperature} {damping}",
             ]
 
