@@ -188,7 +188,7 @@ class AtomisticSimulation(LammpsInputFile):
         log_freq: int = 20,
         dump_freq: int = 20,
         dump_name: str = "lammps.dump",
-        log_forces: bool = False,
+        forces: bool = False,
     ):
         """
         Parameters
@@ -206,7 +206,7 @@ class AtomisticSimulation(LammpsInputFile):
             "thermo_style custom step pe ke etotal temp",
             "thermo_modify format float %15.5f",
         ]
-        if log_forces:
+        if forces:
             dump_spec = f"dump dump_1 all custom {dump_freq} {dump_name} id type element xu yu zu vx vy vz fx fy fz"
         else:
             dump_spec = f"dump dump_1 all custom {dump_freq} {dump_name} id type element xu yu zu vx vy vz"
