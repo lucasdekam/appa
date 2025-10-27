@@ -66,7 +66,7 @@ class AtomisticSimulation(LammpsInputFile):
     def set_potential(
         self,
         model_file: os.PathLike,
-        architecture: Literal["mlmace", "mace-mliap", "grace"] = "mace-mliap",
+        architecture: Literal["mace-mliap", "grace", "mtt"] = "mace-mliap",
     ):
         """
         Define commands for the interatomic potential (force field).
