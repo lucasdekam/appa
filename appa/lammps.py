@@ -13,8 +13,10 @@ INIT_STAGENAME = "Initialization"
 READ_STAGENAME = "Define simulation box"
 POTL_STAGENAME = "Define interatomic potential"
 MDYN_STAGENAME = "Molecular dynamics setup"
-LOGS_STAGENAME = "Logging and dump settings"
-RUNN_STAGENAME = "Running"
+LOG_STAGENAME = "Logging settings"
+DUMP_STAGENAME = "Dump output settings"
+RUN_STAGENAME = "Running"
+RERUN_STAGENAME = "Rerun"
 
 
 class AtomisticSimulation(LammpsInputFile):
@@ -43,6 +45,7 @@ class AtomisticSimulation(LammpsInputFile):
         """
         self.atoms = atoms
         self.species = np.unique(self.atoms.get_chemical_symbols()).tolist()
+        self.numbers = np.unique(self.atoms.get_atomic_numbers()).tolist()
 
         super().__init__(stages=None)
         self.add_stage(
@@ -72,7 +75,7 @@ class AtomisticSimulation(LammpsInputFile):
         ----------
         model_file : os.PathLike
             Path to the potential model file.
-        architecture : {'mlmace', 'mace-mliap', 'grace'}
+        architecture : {'mace-mliap', 'grace', 'mtt'}
             Type of architecture for the potential. Default is 'mace-mliap'.
 
         Examples
@@ -81,19 +84,7 @@ class AtomisticSimulation(LammpsInputFile):
         """
         formatted_symbols = " ".join(self.species)
 
-        if architecture == "mlmace":
-            self.add_commands(
-                stage_name=INIT_STAGENAME,
-                commands=["atom_modify map yes", "newton on"],
-            )
-            self.add_stage(
-                stage_name=POTL_STAGENAME,
-                commands=[
-                    "pair_style mace no_domain_decomposition",
-                    f"pair_coeff * * {model_file} {formatted_symbols}",
-                ],
-            )
-        elif architecture == "mace-mliap":
+        if architecture == "mace-mliap":
             self.add_commands(
                 stage_name=INIT_STAGENAME,
                 commands=["atom_modify map yes", "newton on"],
@@ -113,8 +104,30 @@ class AtomisticSimulation(LammpsInputFile):
                     f"pair_coeff * * {model_file} {formatted_symbols}",
                 ],
             )
+        elif architecture == "mtt":
+            formatted_numbers = " ".join(self.numbers)
+            self.add_stage(
+                stage_name=POTL_STAGENAME,
+                commands=[
+                    f"pair_style metatomic/kk {model_file}",
+                    f"pair_coeff * * {formatted_numbers}",
+                ],
+            )
         else:
             raise NotImplementedError(f"Architecture {architecture} is not recognized.")
+
+    def set_rerun(
+        self,
+        input_dump: os.PathLike,
+    ):
+        """
+        Set up a rerun of the dump file `input_dump`.
+        """
+        commands = [f"rerun {input_dump} dump xu yu zu"]
+        self.add_stage(
+            stage_name=RERUN_STAGENAME,
+            commands=commands,
+        )
 
     def set_molecular_dynamics(
         self,
@@ -183,9 +196,45 @@ class AtomisticSimulation(LammpsInputFile):
             commands=commands,
         )
 
-    def set_output(
+    def set_log(
         self,
         log_freq: int = 20,
+        create_energy_log: bool = True,
+    ):
+        """
+        Setup logging
+        """
+        # see https://docs.lammps.org/fix_print.html
+        energy_logfile_commands = [
+            "variable time equal step*dt",
+            "variable temp equal temp",
+            "variable pe equal pe",
+            "variable ke equal ke",
+            "variable float1 format time %10.4f",
+            "variable float2 format temp %.7f",
+            "variable float3 format pe %.7f",
+            "variable float4 format ke %.7f",
+            "fix myinfo all print 1 '${float1} ${float2} ${float3} ${float4}' title 'time temp pe ke' file energy.log screen no",
+        ]
+
+        # logging in the default log.lammps logfile
+        default_logfile_commands = [
+            f"thermo {log_freq}",
+            "thermo_style custom step pe ke etotal temp",
+            "thermo_modify format float %15.5f",
+        ]
+
+        commands = default_logfile_commands
+        if create_energy_log:
+            commands += energy_logfile_commands
+
+        self.add_stage(
+            stage_name=LOG_STAGENAME,
+            commands=commands,
+        )
+
+    def set_dump(
+        self,
         dump_freq: int = 20,
         dump_name: str = "lammps.dump",
         forces: bool = False,
@@ -203,11 +252,7 @@ class AtomisticSimulation(LammpsInputFile):
             Whether to include force components in the dump file
         """
         formatted_symbols = " ".join(self.species)
-        commands = [
-            f"thermo {log_freq}",
-            "thermo_style custom step pe ke etotal temp",
-            "thermo_modify format float %15.5f",
-        ]
+        commands = []
         if forces:
             dump_spec = f"dump dump_1 all custom {dump_freq} {dump_name} id type element xu yu zu vx vy vz fx fy fz"
         else:
@@ -215,7 +260,7 @@ class AtomisticSimulation(LammpsInputFile):
         commands.append(dump_spec)
         commands.append(f"dump_modify dump_1 element {formatted_symbols} sort id")
         self.add_stage(
-            stage_name=LOGS_STAGENAME,
+            stage_name=DUMP_STAGENAME,
             commands=commands,
         )
 
@@ -245,7 +290,7 @@ class AtomisticSimulation(LammpsInputFile):
         commands.append(f"run {n_steps}")
 
         self.add_stage(
-            stage_name=RUNN_STAGENAME,
+            stage_name=RUN_STAGENAME,
             commands=commands,
         )
 
