@@ -123,7 +123,7 @@ class AtomisticSimulation(LammpsInputFile):
         """
         Set up a rerun of the dump file `input_dump`.
         """
-        commands = [f"rerun {input_dump} dump xu yu zu"]
+        commands = [f"rerun {input_dump} dump x y z"]
         self.add_stage(
             stage_name=RERUN_STAGENAME,
             commands=commands,
