@@ -38,6 +38,7 @@ from appa.build import Electrode, Interface
 )
 @click.option(
     "--a",
+    type=float,
     default=None,
     help="Lattice parameter",
 )
