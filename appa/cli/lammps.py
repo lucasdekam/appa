@@ -8,15 +8,14 @@ from ase.constraints import FixAtoms
 @click.argument(
     "initial",
     type=str,
-    help="Path to initial configuration (extxyz)",
 )
-@click.argument(
-    "architecture",
+@click.option(
+    "--architecture",
     type=str,
     help="appa-supported architecture (mace-mliap, grace, mtt)",
 )
-@click.argument(
-    "model",
+@click.option(
+    "--model",
     type=str,
     help="Path to model",
 )
