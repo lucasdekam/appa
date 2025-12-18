@@ -5,17 +5,20 @@ from ase.constraints import FixAtoms
 
 
 @click.command("lammps")
-@click.option(
-    "--model",
+@click.argument(
+    "initial",
     type=str,
-    required=True,
-    help="Path to model",
-)
-@click.option(
-    "--initial",
-    type=str,
-    required=False,
     help="Path to initial configuration (extxyz)",
+)
+@click.argument(
+    "architecture",
+    type=str,
+    help="appa-supported architecture (mace-mliap, grace, mtt)",
+)
+@click.argument(
+    "model",
+    type=str,
+    help="Path to model",
 )
 @click.option(
     "--steps",
@@ -36,12 +39,6 @@ from ase.constraints import FixAtoms
     help="MD timestep (ps)",
 )
 @click.option(
-    "--architecture",
-    type=str,
-    required=True,
-    help="appa-supported architecture (mace-mliap, grace, mtt)",
-)
-@click.option(
     "--dump-freq",
     type=int,
     default=20,
@@ -49,21 +46,24 @@ from ase.constraints import FixAtoms
 )
 def lammps(
     model,
+    architecture,
     initial,
     steps,
     temperature,
     timestep,
-    architecture,
     dump_freq,
 ):
     """Write LAMMPS simulation inputs."""
     atoms = read(initial)
+    click.echo(f"Loaded initial configuration from: {initial}")
+
     fixed_indices = []
     if atoms.constraints:
         for constraint in atoms.constraints:
             if isinstance(constraint, FixAtoms):
                 fixed_indices = constraint.index.tolist()
                 break
+    click.echo(f"Fixed atom indices: {fixed_indices}")
 
     sim = AtomisticSimulation(atoms)
     sim.set_potential(model, architecture=architecture)
@@ -78,3 +78,4 @@ def lammps(
     sim.set_run(n_steps=steps)
 
     sim.write_inputs()
+    click.echo("Inputs written to current working directory")
