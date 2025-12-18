@@ -12,14 +12,18 @@ authors = [
 ]
 license = { file = "LICENSE" }
 dependencies = [
+    "mdapackmol",
     "ase>=3.22",
     "numpy>=1.23",
     "pymatgen",
     "pyyaml",
     "cp2k-input-tools",
+    "click",
 ]
 requires-python = ">=3.9"
 
 [project.urls]
 Homepage = "https://github.com/lucasdekam/appa"
 
+[project.scripts]
+appa = "appa.cli.appa:appa"
