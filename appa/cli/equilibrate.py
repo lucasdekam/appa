@@ -19,8 +19,8 @@ from appa.md import run_langevin_md
 )
 @click.option(
     "--temperature",
-    default=200.0,
-    help="MD temperature in K. Low temperature helps relax structure",
+    default=300.0,
+    help="MD temperature in K.",
 )
 @click.option("--steps", default=1000)
 @click.option(
@@ -50,6 +50,7 @@ def equilibrate(
     """Equilibrate a structure using ASE MD with PET-MAD. Uses a harmonic wall
     to make sure water molecules don't escape into the vacuum region."""
     atoms = read(structure)
+    click.echo(f"Loaded structure: {structure}")
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     click.echo(f"Using device: {device}")
@@ -72,4 +73,4 @@ def equilibrate(
         log_interval=20,
     )
     write(output, atoms)
-    click.echo(f"MD finished, trajectory written to {traj}")
+    click.echo(f"MD finished, equilibrated structure written to {output}")
