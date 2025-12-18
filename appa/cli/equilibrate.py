@@ -52,9 +52,10 @@ def equilibrate(
     atoms = read(structure)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    click.echo(f"Using device: {device}")
 
     calc_MAD = PETMADCalculator(version="latest", device=device)
-    dft_d3 = TorchDFTD3Calculator(device=device, xc="pbesol", damping="bj")
+    dft_d3 = TorchDFTD3Calculator(device=device, xc="pbesol", damping="bj", cutoff=10)
 
     combined_calc = SumCalculator([calc_MAD, dft_d3])
     atoms.calc = combined_calc

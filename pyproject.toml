@@ -13,12 +13,13 @@ authors = [
 license = { file = "LICENSE" }
 dependencies = [
     "mdapackmol",
-    "ase>=3.22",
+    "ase>=3.26",
     "numpy>=1.23",
     "pymatgen",
     "pyyaml",
     "cp2k-input-tools",
     "click",
+    "torch-dftd",
 ]
 requires-python = ">=3.9"
 
