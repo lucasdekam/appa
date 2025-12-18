@@ -1,7 +1,7 @@
 import click
+from ase.io import write
 
 from appa.build import Electrode, Interface
-from appa.io import write_with_fixatoms
 
 
 @click.command("build")
@@ -74,5 +74,5 @@ def build(output, material, size, d_water, d_vacuum, a, fix_layers, ion, n_ions)
         ion_delta_z=1.5,
     )
     atoms = interface.add_electrolyte(seed=1, verbose=True)
-    write_with_fixatoms(output, atoms)
+    write(output, atoms)
     click.echo(f"Structure written to {output}")

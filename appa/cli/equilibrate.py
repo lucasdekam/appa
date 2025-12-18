@@ -1,12 +1,13 @@
 import click
 from ase.io.trajectory import Trajectory
 from ase.calculators.mixing import SumCalculator
+from ase.io import write, read
+
 import torch
 from torch_dftd.torch_dftd3_calculator import TorchDFTD3Calculator
 from pet_mad.calculator import PETMADCalculator
 
 from appa.md import run_langevin_md
-from appa.io import write_with_fixatoms, read_with_fixatoms
 
 
 @click.command("equilibrate")
@@ -48,7 +49,7 @@ def equilibrate(
 ):
     """Equilibrate a structure using ASE MD with PET-MAD. Uses a harmonic wall
     to make sure water molecules don't escape into the vacuum region."""
-    atoms = read_with_fixatoms(structure)
+    atoms = read(structure)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -69,5 +70,5 @@ def equilibrate(
         traj=Trajectory(traj, "w", atoms) if traj is not None else None,
         log_interval=20,
     )
-    write_with_fixatoms(output, atoms)
+    write(output, atoms)
     click.echo(f"MD finished, trajectory written to {traj}")
