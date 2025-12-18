@@ -12,11 +12,13 @@ from ase.constraints import FixAtoms
 @click.option(
     "--architecture",
     type=str,
+    required=True,
     help="appa-supported architecture (mace-mliap, grace, mtt)",
 )
 @click.option(
     "--model",
     type=str,
+    required=True,
     help="Path to model",
 )
 @click.option(
