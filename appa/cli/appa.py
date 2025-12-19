@@ -5,6 +5,7 @@ from appa.cli.equilibrate import equilibrate
 from appa.cli.lammps import lammps
 from appa.cli.select import select
 from appa.cli.plumed import plumed
+from appa.cli.vasp import vasp
 
 
 @click.group()
@@ -18,6 +19,7 @@ appa.add_command(equilibrate)
 appa.add_command(lammps)
 appa.add_command(select)
 appa.add_command(plumed)
+appa.add_command(vasp)
 
 if __name__ == "__main__":
     appa()
