@@ -40,7 +40,7 @@ from appa.build import Electrode, Interface
     "--a",
     type=float,
     default=None,
-    help="Lattice parameter",
+    help="Lattice parameter; if None takes ASE default",
 )
 @click.option(
     "--fix-layers",
