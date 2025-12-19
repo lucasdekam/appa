@@ -45,6 +45,12 @@ from ase.constraints import FixAtoms
     default=20,
     help="How many steps between saving frames to the dump file",
 )
+@click.option(
+    "--plumed-file",
+    type=str,
+    default=None,
+    help="Path to PLUMED input file",
+)
 def lammps(
     model,
     architecture,
@@ -53,6 +59,7 @@ def lammps(
     temperature,
     timestep,
     dump_freq,
+    plumed_file,
 ):
     """Write LAMMPS simulation inputs."""
     atoms = read(initial)
@@ -74,6 +81,8 @@ def lammps(
         timestep=timestep,
         fixed_atoms=fixed_indices,
     )
+    if plumed_file is not None:
+        sim.set_plumed(plumed_file)
     sim.set_log()
     sim.set_dump(dump_freq=dump_freq)
     sim.set_run(n_steps=steps)

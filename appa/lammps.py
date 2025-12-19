@@ -13,6 +13,7 @@ INIT_STAGENAME = "Initialization"
 READ_STAGENAME = "Define simulation box"
 POTL_STAGENAME = "Define interatomic potential"
 MDYN_STAGENAME = "Molecular dynamics setup"
+PLUMED_STAGENAME = "Plumed input and output"
 LOG_STAGENAME = "Logging settings"
 DUMP_STAGENAME = "Dump output settings"
 RUN_STAGENAME = "Running"
@@ -194,6 +195,26 @@ class AtomisticSimulation(LammpsInputFile):
         self.add_stage(
             stage_name=MDYN_STAGENAME,
             commands=commands,
+        )
+
+    def set_plumed(
+        self,
+        plumed_file: str,
+        outfile_path: str = "plumed.log",
+    ):
+        """
+        Link to a PLUMED input file
+
+        :param plumed_file: Path to .dat PLUMED input file
+        :type plumed_file: str
+        :param outfile_path: Path to PLUMED log file, default: plumed.log
+        :type outfile_path: str
+        """
+        self.add_stage(
+            stage_name=PLUMED_STAGENAME,
+            commands=[
+                f"fix pl_fix all plumed plumedfile {plumed_file} outfile {outfile_path}"
+            ],
         )
 
     def set_log(
