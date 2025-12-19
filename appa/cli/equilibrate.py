@@ -3,10 +3,6 @@ from ase.io.trajectory import Trajectory
 from ase.calculators.mixing import SumCalculator
 from ase.io import write, read
 
-import torch
-from torch_dftd.torch_dftd3_calculator import TorchDFTD3Calculator
-from pet_mad.calculator import PETMADCalculator
-
 from appa.md import run_langevin_md
 
 
@@ -51,6 +47,15 @@ def equilibrate(
     to make sure water molecules don't escape into the vacuum region."""
     atoms = read(structure)
     click.echo(f"Loaded structure: {structure}")
+
+    try:
+        import torch
+        from torch_dftd.torch_dftd3_calculator import TorchDFTD3Calculator
+        from pet_mad.calculator import PETMADCalculator
+    except ImportError as e:
+        raise ImportError(
+            "Please install torch, torch-dftd, and pet-mad to run this script."
+        ) from e
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     click.echo(f"Using device: {device}")
