@@ -20,7 +20,7 @@ def vasp():
     pass
 
 
-@vasp.command()
+@vasp.command("collect")
 @click.argument(
     "directory",
     type=click.Path(exists=True, file_okay=False, path_type=Path),
@@ -88,10 +88,10 @@ def collect(directory: Path, output: Path):
     click.echo(f"Wrote {len(configs)} configurations to {output}")
 
 
-@vasp.command(name="write-inputs")
+@vasp.command("input")
 @click.option(
     "--xyz",
-    "input_xyz",
+    "--input_xyz",
     required=True,
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     help="XYZ file with configurations to be labelled.",
@@ -136,7 +136,7 @@ def collect(directory: Path, output: Path):
     type=float,
     help="k-point spacing in reciprocal space.",
 )
-def write_inputs(
+def input(
     input_xyz: Path,
     index: int,
     output_dir: Path,
