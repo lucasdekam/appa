@@ -126,8 +126,11 @@ def select(data_dir, size, bw, out, species, d_vacuum):
     species_list = sorted(set(dataset[0].symbols))
 
     # Compute descriptors for all frames
-    x = get_descriptors_multicomponent(dataset[:frames], species=species_list)
-    x = x.reshape(frames, n_atoms, -1)
+    x = [
+        get_descriptors_multicomponent([s], species=species_list).reshape(len(s), -1)
+        for s in dataset
+    ]
+    # x = x.reshape(frames, n_atoms, -1)
 
     # Compute entropies (one value per structure)
     entropies = [entropy(element, h=bw) for element in x]
