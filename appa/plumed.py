@@ -52,18 +52,14 @@ def generate_plumed_volmer(
 d_OH: DISTANCE ATOMS={oxygen},{hydrogen}
 d_MH: DISTANCE ATOMS={metal},{hydrogen}
 
-# Reaction coordinate ξ = d(O-H) - d(Pt-H)
+# Reaction coordinate xi = d(O-H) - d(Pt-H)
 xi: COMBINE ARG=d_OH,d_MH COEFFICIENTS=1,-1 PERIODIC=NO
 
 # Harmonic umbrella restraint
-RESTRAINT
-  ARG=xi
-  AT={cv_target}
-  KAPPA={kappa}
-ENDRESTRAINT
+restraint: RESTRAINT ARG=xi AT={cv_target} KAPPA={kappa}
 
 # Output
-PRINT STRIDE={stride} ARG=xi,bias,d_OH,d_MH FILE={colvar_file}
+PRINT STRIDE={stride} ARG=xi,restraint.bias,d_OH,d_MH FILE={colvar_file}
 """
 
     if outfile is not None:
