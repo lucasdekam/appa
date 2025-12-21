@@ -151,7 +151,7 @@ def input(
     os.environ.setdefault("VASP_PP_PATH", os.environ["HOME"] + "/vasp/pps")
 
     with open(params, "r", encoding="utf-8") as f:
-        vasp_params = yaml.safe_load(f)
+        vasp_params: dict = yaml.safe_load(f)
 
     atoms = read(input_xyz, index=index)
 
@@ -164,7 +164,7 @@ def input(
         f"c*={rec_lengths[2]:.3f}"
     )
     click.echo(
-        f"KSPACING = {vasp_params.get("kspacing", None):.3f}, KPOINTS={vasp_params.get("kpts", None)}"
+        f"KSPACING = {vasp_params.get('kspacing', None):.3f}, KPOINTS={vasp_params.get('kpts', None)}"
     )
 
     output_dir.mkdir(parents=True, exist_ok=True)
