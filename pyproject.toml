@@ -19,7 +19,6 @@ dependencies = [
     "pyyaml",
     "cp2k-input-tools",
     "click",
-    "torch-dftd",
     "quests",
 ]
 requires-python = ">=3.9"
