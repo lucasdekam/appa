@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 import glob
 import os
 
@@ -20,6 +20,21 @@ def load_dataset(data_dir: str) -> List:
                 loaded = [loaded]
             dataset.extend(loaded)
     return dataset
+
+
+def filter_by_species(dataset, allowed_species: Optional[List[str]]):
+    if allowed_species is None:
+        return dataset
+
+    allowed = set(allowed_species)
+
+    filtered = []
+    for atoms in dataset:
+        symbols = set(atoms.symbols)
+        if symbols.issubset(allowed):
+            filtered.append(atoms)
+
+    return filtered
 
 
 @click.command()
@@ -46,20 +61,35 @@ def load_dataset(data_dir: str) -> List:
     "--out",
     "-o",
     default="selected.xyz",
-    help="Output xyz file for selected structures",
 )
-def select(data_dir, size, bw, out):
-    """Select diverse structures with MSC"""
+@click.option(
+    "--species",
+    nargs=-1,
+    type=str,
+    help="Allowed species (e.g. --species O H Pt)",
+)
+def select(data_dir, size, bw, out, species):
     dataset = load_dataset(data_dir)
 
     if not dataset:
         click.echo("No structures found in data directory")
         return
 
+    if species:
+        dataset = filter_by_species(dataset, list(species))
+        click.echo(
+            f"Dataset filtered to {len(dataset)} structures "
+            f"using species={list(species)}"
+        )
+
+    if not dataset:
+        click.echo("No structures left after species filtering")
+        return
+
     frames = len(dataset)
     n_atoms = len(dataset[0])
 
-    # Determine species present in the first frame
+    # Determine species present (after filtering)
     species_list = sorted(set(dataset[0].symbols))
 
     # Compute descriptors for all frames
