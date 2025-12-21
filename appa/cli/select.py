@@ -37,6 +37,25 @@ def filter_by_species(dataset, allowed_species: Optional[List[str]]):
     return filtered
 
 
+def filter_by_vacuum(dataset, d_vacuum: float):
+    """
+    Keep only structures where the top d_vacuum Å of the cell is empty.
+    """
+    if d_vacuum is None:
+        return dataset
+
+    filtered = []
+    for atoms in dataset:
+        cell_z = atoms.cell[2, 2]
+        z_positions = atoms.positions[:, 2]
+
+        # Highest atom must be below (cell_z - d_vacuum)
+        if z_positions.max() <= cell_z - d_vacuum:
+            filtered.append(atoms)
+
+    return filtered
+
+
 @click.command()
 @click.option(
     "--data-dir",
@@ -68,7 +87,13 @@ def filter_by_species(dataset, allowed_species: Optional[List[str]]):
     type=str,
     help="Allowed species (e.g. --species O H Pt)",
 )
-def select(data_dir, size, bw, out, species):
+@click.option(
+    "--d-vacuum",
+    type=float,
+    default=None,
+    help="Require the top d_vacuum (Å) of the cell to be empty (slab vacuum check)",
+)
+def select(data_dir, size, bw, out, species, d_vacuum):
     dataset = load_dataset(data_dir)
 
     if not dataset:
@@ -82,8 +107,15 @@ def select(data_dir, size, bw, out, species):
             f"using species={list(species)}"
         )
 
+    if d_vacuum is not None:
+        dataset = filter_by_vacuum(dataset, d_vacuum)
+        click.echo(
+            f"Dataset filtered to {len(dataset)} structures "
+            f"with ≥ {d_vacuum:.2f} Å vacuum on top"
+        )
+
     if not dataset:
-        click.echo("No structures left after species filtering")
+        click.echo("No structures left after filtering")
         return
 
     frames = len(dataset)
