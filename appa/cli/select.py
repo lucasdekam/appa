@@ -83,9 +83,10 @@ def filter_by_vacuum(dataset, d_vacuum: float):
 )
 @click.option(
     "--species",
-    nargs=-1,
+    "-s",
+    multiple=True,
     type=str,
-    help="Allowed species (e.g. --species O H Pt)",
+    help="Allowed species (e.g. -s O -s H -s Pt)",
 )
 @click.option(
     "--d-vacuum",
