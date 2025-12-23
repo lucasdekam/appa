@@ -129,13 +129,6 @@ def collect(directory: Path, output: Path):
     type=int,
     help="VASP KPAR.",
 )
-@click.option(
-    "--kspacing",
-    default=0.18,
-    show_default=True,
-    type=float,
-    help="k-point spacing in reciprocal space.",
-)
 def input(
     input_xyz: Path,
     index: int,
@@ -146,22 +139,25 @@ def input(
 ):
     """
     Generate VASP input files for a single configuration.
+    Requires a config .yaml file with sections specified by config_type,
+    and an ASE-readable XYZ extended file where all structures have a
+    config_type in their info section.
     """
     # Set pseudopotential path for ASE
     os.environ.setdefault("VASP_PP_PATH", os.environ["HOME"] + "/vasp/pps")
 
-    with open(params, "r", encoding="utf-8") as f:
-        vasp_params: dict = yaml.safe_load(f)
-
     atoms = read(input_xyz, index=index)
+    with open(params, "r", encoding="utf-8") as f:
+        yaml_params: dict = yaml.safe_load(f)
+        vasp_params: dict = yaml_params[atoms.info["config_type"]]
 
     rec_lengths = np.linalg.norm(atoms.cell.reciprocal(), axis=1)
 
     click.echo(
         "Reciprocal lengths (Å⁻¹): "
-        f"a*={rec_lengths[0]:.3f}, "
-        f"b*={rec_lengths[1]:.3f}, "
-        f"c*={rec_lengths[2]:.3f}"
+        f"a={rec_lengths[0]:.3f}, "
+        f"b={rec_lengths[1]:.3f}, "
+        f"c={rec_lengths[2]:.3f}"
     )
     click.echo(
         f"KSPACING = {vasp_params.get('kspacing', None):.3f}, KPOINTS={vasp_params.get('kpts', None)}"
@@ -169,12 +165,13 @@ def input(
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    click.echo("Calculating dipole position...")
-    vasp_params["dipol"] = [
-        0.5,
-        0.5,
-        (atoms.positions[:, 2].mean() / atoms.cell[2, 2]).item(),
-    ]
+    if vasp_params.get("ldipol", True):
+        click.echo("Calculating dipole position...")
+        vasp_params["dipol"] = [
+            0.5,
+            0.5,
+            (atoms.positions[:, 2].mean() / atoms.cell[2, 2]).item(),
+        ]
 
     calc = Vasp(
         directory=str(output_dir),
