@@ -129,7 +129,7 @@ def collect(directory: Path, output: Path):
     help="VASP KPAR.",
 )
 def input(
-    input_xyz: Path,
+    xyz: Path,
     index: int,
     output_dir: Path,
     params: Path,
@@ -137,8 +137,8 @@ def input(
     kpar: int,
 ):
     """
-    Generate VASP input files for a single configuration.
-    Requires a config .yaml file with sections specified by config_type,
+    Generate VASP input files for a single structure (specified by xyz and
+    index). Requires a config .yaml file with sections specified by config_type,
     and an ASE-readable XYZ extended file where all structures have a
     config_type in their info section.
     """
