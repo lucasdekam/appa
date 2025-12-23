@@ -51,9 +51,10 @@ def filter_by_vacuum(dataset, d_vacuum: float):
         a, b, c, _, _, _ = cell.cellpar()
         z_positions = atoms.positions[:, 2]
 
-        if not (np.isclose(a, b, rtol=0.05) and np.isclose(a, c, rtol=0.05)):
-            if z_positions.max() <= c - d_vacuum:
-                filtered.append(atoms)
+        if np.isclose(a, b, rtol=0.05) and np.isclose(a, c):
+            filtered.append(atoms)
+        elif z_positions.max() <= c - d_vacuum:
+            filtered.append(atoms)
 
     return filtered
 
