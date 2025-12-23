@@ -5,6 +5,7 @@ import os
 import numpy as np
 import click
 from ase.io import read, write
+from ase.cell import Cell
 
 from quests.descriptor import get_descriptors_multicomponent
 from quests.entropy import entropy
@@ -46,12 +47,13 @@ def filter_by_vacuum(dataset, d_vacuum: float):
 
     filtered = []
     for atoms in dataset:
-        cell_z = atoms.cell[2, 2]
+        cell: Cell = atoms.cell
+        a, b, c, _, _, _ = cell.cellpar()
         z_positions = atoms.positions[:, 2]
 
-        # Highest atom must be below (cell_z - d_vacuum)
-        if z_positions.max() <= cell_z - d_vacuum:
-            filtered.append(atoms)
+        if np.isclose(a, b, rtol=0.05) and np.isclose(a, c):
+            if z_positions.max() <= c - d_vacuum:
+                filtered.append(atoms)
 
     return filtered
 
