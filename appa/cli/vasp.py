@@ -91,7 +91,6 @@ def collect(directory: Path, output: Path):
 @vasp.command("input")
 @click.option(
     "--xyz",
-    "--input_xyz",
     required=True,
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     help="XYZ file with configurations to be labelled.",
