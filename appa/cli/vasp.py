@@ -145,7 +145,7 @@ def input(
     # Set pseudopotential path for ASE
     os.environ.setdefault("VASP_PP_PATH", os.environ["HOME"] + "/vasp/pps")
 
-    atoms = read(input_xyz, index=index)
+    atoms = read(xyz, index=index)
     with open(params, "r", encoding="utf-8") as f:
         yaml_params: dict = yaml.safe_load(f)
         vasp_params: dict = yaml_params[atoms.info["config_type"]]
@@ -180,7 +180,7 @@ def input(
     )
 
     click.echo(
-        f"Writing input for config {index} of {input_xyz} to {output_dir}\n"
+        f"Writing input for config {index} of {xyz} to {output_dir}\n"
         f"params={vasp_params}"
     )
 
