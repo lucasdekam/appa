@@ -8,6 +8,7 @@ from appa.md import run_langevin_md
 
 @click.command("equilibrate")
 @click.argument("structure")
+@click.argument("model")
 @click.option(
     "--output",
     default="equilibrated.xyz",
@@ -36,6 +37,7 @@ from appa.md import run_langevin_md
 )
 def equilibrate(
     structure,
+    model,
     output,
     temperature,
     steps,
@@ -43,24 +45,26 @@ def equilibrate(
     k_wall,
     traj,
 ):
-    """Equilibrate a structure using ASE MD with PET-MAD. Uses a harmonic wall
-    to make sure water molecules don't escape into the vacuum region."""
+    """Equilibrate a structure using ASE MD with a given compiled NequIP model.
+    Uses a harmonic wall to make sure water molecules don't escape into
+    the vacuum region."""
     atoms = read(structure)
     click.echo(f"Loaded structure: {structure}")
 
     try:
         import torch
         from torch_dftd.torch_dftd3_calculator import TorchDFTD3Calculator
-        from pet_mad.calculator import PETMADCalculator
+        from nequip.ase import NequIPCalculator
+
     except ImportError as e:
         raise ImportError(
-            "Please install torch, torch-dftd, and pet-mad to run this script."
+            "Please install nequip and torch-dftd to run this script."
         ) from e
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     click.echo(f"Using device: {device}")
 
-    calc_MAD = PETMADCalculator(version="latest", device=device)
+    calc_MAD = NequIPCalculator.from_compiled_model(compile_path=model, device=device)
     dft_d3 = TorchDFTD3Calculator(device=device, xc="pbesol", damping="bj", cutoff=10)
 
     combined_calc = SumCalculator([calc_MAD, dft_d3])
