@@ -150,10 +150,10 @@ def input(
         yaml_params: dict = yaml.safe_load(f)
         vasp_params: dict = yaml_params[atoms.info["config_type"]]
 
-    rec_lengths = np.linalg.norm(atoms.cell.reciprocal(), axis=1)
+    rec_lengths = np.linalg.norm(atoms.cell.reciprocal(), axis=1) * 2 * np.pi
 
     click.echo(
-        "Reciprocal lengths (Å⁻¹): "
+        "Reciprocal lengths (Å⁻¹), incl. 2pi: "
         f"a={rec_lengths[0]:.3f}, "
         f"b={rec_lengths[1]:.3f}, "
         f"c={rec_lengths[2]:.3f}"
@@ -164,7 +164,7 @@ def input(
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    if vasp_params.get("ldipol", True):
+    if vasp_params.get("ldipol", False):
         click.echo("Calculating dipole position...")
         vasp_params["dipol"] = [
             0.5,
