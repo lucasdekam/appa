@@ -122,9 +122,6 @@ def select(data_dir, size, bw, out, species, d_vacuum):
         click.echo("No structures left after filtering")
         return
 
-    frames = len(dataset)
-    n_atoms = len(dataset[0])
-
     # Determine species present (after filtering)
     species_list = sorted(set(dataset[0].symbols))
 
