@@ -1,0 +1,37 @@
+#!/bin/bash
+#SBATCH --job-name=label
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=64
+#SBATCH --cpus-per-task=1
+#SBATCH --threads-per-core=1
+#SBATCH --time=1-00:00:00
+
+source ~/.bashrc
+conda activate grace
+which python
+
+module purge
+module load 2025
+module load VASP5/5.4.4.pl2-foss-2025a-VASPsol-VTST-CUDA-12.8.0
+
+echo "$(date "+%Y-%m-%d %H:%M:%S"): Job started"
+echo "$(date "+%Y-%m-%d %H:%M:%S"): Node $SLURMD_NODENAME"
+
+TASK_DIR=$(printf "$PWD/results/%05d" "$SLURM_ARRAY_TASK_ID")
+SCRATCH_BASE="/scratch-local/$USER"
+SCRATCH_DIR="$SCRATCH_BASE/${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}"
+
+# Final labeling
+appa vasp input --xyz="structures.xyz" --index=$SLURM_ARRAY_TASK_ID --output-dir=$TASK_DIR --ncore=32 --kpar=2
+
+mkdir -p $SCRATCH_DIR
+rsync -a "$TASK_DIR/" "$SCRATCH_DIR/"
+pushd $SCRATCH_DIR
+echo "$(date "+%Y-%m-%d %H:%M:%S"): Running VASP"
+srun vasp_std
+popd
+rsync -a "$SCRATCH_DIR/" "$TASK_DIR/"
+
+# Clean up
+rm -rf "$SCRATCH_DIR"
+echo "$(date "+%Y-%m-%d %H:%M:%S"): Job finished"
