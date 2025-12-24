@@ -148,22 +148,41 @@ def input(
     atoms = read(xyz, index=index)
     with open(params, "r", encoding="utf-8") as f:
         yaml_params: dict = yaml.safe_load(f)
-        vasp_params: dict = yaml_params[atoms.info["config_type"]]
+        vasp_params: dict = yaml_params[atoms.info["config_type"]].copy()
 
+    # Reciprocal lattice lengths including 2pi (Å⁻¹)
     rec_lengths = np.linalg.norm(atoms.cell.reciprocal(), axis=1) * 2 * np.pi
 
-    if vasp_params.get("kspacing", None):
+    kspacing = vasp_params.get("kspacing", None)
+    is_slab = vasp_params.get("ldipol", False)
+
+    if kspacing is not None:
         click.echo(
             "Reciprocal lengths (Å⁻¹), incl. 2pi: "
             f"a={rec_lengths[0]:.3f}, "
             f"b={rec_lengths[1]:.3f}, "
             f"c={rec_lengths[2]:.3f}"
         )
-        click.echo(f"KSPACING = {vasp_params.get('kspacing', None):.3f}")
+        click.echo(f"KSPACING = {kspacing:.3f}")
+
+        # Generate k-point grid explicitly
+        kpts = np.maximum(1, np.ceil(rec_lengths / kspacing).astype(int))
+
+        if is_slab:
+            click.echo("Detected slab (ldipol=True): forcing Nkz = 1 and gamma=True")
+            kpts[2] = 1
+            vasp_params["gamma"] = True
+
+        vasp_params["kpts"] = tuple(int(k) for k in kpts)
+
+        # Remove kspacing so VASP does not regenerate k-points
+        vasp_params.pop("kspacing", None)
+
+        click.echo(f"Using explicit k-points: {vasp_params['kpts']}")
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    if vasp_params.get("ldipol", False):
+    if is_slab:
         click.echo("Calculating dipole position...")
         vasp_params["dipol"] = [
             0.5,
