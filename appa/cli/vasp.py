@@ -155,6 +155,7 @@ def input(
 
     kspacing = vasp_params.get("kspacing", None)
     is_slab = vasp_params.get("ldipol", False)
+    click.echo(f"Slab geometry? {is_slab}")
 
     if kspacing is not None:
         click.echo(
