@@ -152,15 +152,14 @@ def input(
 
     rec_lengths = np.linalg.norm(atoms.cell.reciprocal(), axis=1) * 2 * np.pi
 
-    click.echo(
-        "Reciprocal lengths (Å⁻¹), incl. 2pi: "
-        f"a={rec_lengths[0]:.3f}, "
-        f"b={rec_lengths[1]:.3f}, "
-        f"c={rec_lengths[2]:.3f}"
-    )
-    click.echo(
-        f"KSPACING = {vasp_params.get('kspacing', None):.3f}, KPOINTS={vasp_params.get('kpts', None)}"
-    )
+    if vasp_params.get("kspacing", None):
+        click.echo(
+            "Reciprocal lengths (Å⁻¹), incl. 2pi: "
+            f"a={rec_lengths[0]:.3f}, "
+            f"b={rec_lengths[1]:.3f}, "
+            f"c={rec_lengths[2]:.3f}"
+        )
+        click.echo(f"KSPACING = {vasp_params.get('kspacing', None):.3f}")
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
