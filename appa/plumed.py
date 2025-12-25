@@ -5,6 +5,7 @@ def generate_plumed_volmer(
     cv_target,
     kappa=4.0,
     stride=10,
+    max_dist_mh=2.8,
     colvar_file="COLVAR",
     zero_based=True,
     outfile=None,
@@ -26,6 +27,8 @@ def generate_plumed_volmer(
         Umbrella force constant in eV/Å^2 (default: 4.0).
     stride : int, optional
         STRIDE for PRINT (default: 10).
+    max_dist_mh: float, optional
+        Maximum M-H distance to avoid proton escape (default: 2.8).
     colvar_file : str, optional
         Name of the COLVAR output file.
     zero_based : bool, optional
@@ -58,8 +61,11 @@ xi: COMBINE ARG=d_OH,d_MH COEFFICIENTS=1,-1 PERIODIC=NO
 # Harmonic umbrella restraint
 restraint: RESTRAINT ARG=xi AT={cv_target} KAPPA={kappa}
 
+# Upper wall to avoid proton escape
+uwall: UPPER_WALLS ARG=d_MH AT={max_dist_mh} KAPPA=10.0
+
 # Output
-PRINT STRIDE={stride} ARG=xi,restraint.bias,d_OH,d_MH FILE={colvar_file}
+PRINT STRIDE={stride} ARG=xi,restraint.bias,uwall.bias,d_OH,d_MH FILE={colvar_file}
 """
 
     if outfile is not None:

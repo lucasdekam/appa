@@ -31,6 +31,12 @@ def plumed():
     default=10,
     help="How often to print to COLVAR",
 )
+@click.option(
+    "--max-dist-mh",
+    type=float,
+    default=2.8,
+    help="Maximum M-H distance, enforced by upper wall constraint",
+)
 def volmer(
     oxygen_id,
     hydrogen_id,
@@ -38,6 +44,7 @@ def volmer(
     cv_target,
     kappa,
     stride,
+    max_dist_mh,
 ):
     """Write plumed.dat input file for a Volmer step calculation."""
     generate_plumed_volmer(
@@ -47,6 +54,7 @@ def volmer(
         cv_target,
         kappa,
         stride,
+        max_dist_mh,
         colvar_file=f"COLVAR_{cv_target}",
         outfile="plumed.dat",
     )
