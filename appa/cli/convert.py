@@ -22,7 +22,7 @@ def convert():
 @click.option(
     "--subtract-reference",
     is_flag=True,
-    help="Subtract reference energies from structures with config_type='IsolatedAtom'",
+    help="Subtract reference energies from isolated atom configs",
 )
 def xyz2grace(xyz_file, out_file, subtract_reference):
     """Convert an extxyz file to a GRACE-compatible DataFrame."""
@@ -38,18 +38,12 @@ def xyz2grace(xyz_file, out_file, subtract_reference):
             symbols = atoms.get_chemical_symbols()
             elements.update(symbols)
 
-            is_isolated = atoms.info.get("config_type") == "IsolatedAtom"
+            is_isolated = len(atoms) == 1
             energy = atoms.info.get("DFT_energy")
 
             if is_isolated:
-                if len(atoms) != 1:
-                    raise click.ClickException(
-                        "IsolatedAtom config must contain exactly one atom"
-                    )
                 if energy is None:
-                    raise click.ClickException(
-                        "IsolatedAtom config is missing DFT_energy"
-                    )
+                    raise click.ClickException("Isolated atom is missing DFT_energy")
 
                 isolated[symbols[0]] = energy
 
@@ -66,7 +60,7 @@ def xyz2grace(xyz_file, out_file, subtract_reference):
 
     # Build GRACE dataframe records (skip isolated atoms)
     for atoms in atoms_list:
-        if atoms.info.get("config_type") == "IsolatedAtom":
+        if len(atoms) == 1:
             continue
 
         energy = atoms.info.get("DFT_energy")
@@ -118,16 +112,12 @@ def extract_isolated(xyz_file, out_xyz):
     kept_atoms = []
 
     for atoms in atoms_list:
-        is_isolated = atoms.info.get("config_type") == "IsolatedAtom"
+        is_isolated = len(atoms) == 1
         energy = atoms.info.get("DFT_energy")
 
         if is_isolated:
-            if len(atoms) != 1:
-                raise click.ClickException(
-                    "IsolatedAtom config must contain exactly one atom"
-                )
             if energy is None:
-                raise click.ClickException("IsolatedAtom config is missing DFT_energy")
+                raise click.ClickException("Isolated atom is missing DFT_energy")
 
             symbol = atoms.get_chemical_symbols()[0]
             isolated[symbol] = energy
