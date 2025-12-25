@@ -98,6 +98,8 @@ def filter_by_vacuum(dataset, d_vacuum: float):
     help="Require the top d_vacuum (Å) of the cell to be empty (slab vacuum check)",
 )
 def select(data_dir, size, bw, out, species, d_vacuum):
+    """Select the most diverse configurations spanning the configuration space
+    using the Maximum Set Coverage algorithm."""
     dataset = load_dataset(data_dir)
 
     if not dataset:
