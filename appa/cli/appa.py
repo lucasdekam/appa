@@ -6,6 +6,7 @@ from appa.cli.lammps import lammps
 from appa.cli.select import select
 from appa.cli.plumed import plumed
 from appa.cli.vasp import vasp
+from appa.cli.convert import convert
 
 
 @click.group()
@@ -20,6 +21,7 @@ appa.add_command(lammps)
 appa.add_command(select)
 appa.add_command(plumed)
 appa.add_command(vasp)
+appa.add_command(convert)
 
 if __name__ == "__main__":
     appa()

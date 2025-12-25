@@ -17,6 +17,7 @@ dependencies = [
     "numpy>=1.23",
     "pymatgen",
     "pyyaml",
+    "pandas",
     "cp2k-input-tools",
     "click",
     "quests",
