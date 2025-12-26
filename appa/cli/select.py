@@ -5,7 +5,6 @@ import os
 import numpy as np
 import click
 from ase.io import read, write
-from ase.cell import Cell
 
 from quests.descriptor import get_descriptors_multicomponent
 from quests.entropy import entropy
@@ -33,27 +32,6 @@ def filter_by_species(dataset, allowed_species: Optional[List[str]]):
     for atoms in dataset:
         symbols = set(atoms.symbols)
         if symbols.issubset(allowed):
-            filtered.append(atoms)
-
-    return filtered
-
-
-def filter_by_vacuum(dataset, d_vacuum: float):
-    """
-    Keep only structures where the top d_vacuum Å of the cell is empty.
-    """
-    if d_vacuum is None:
-        return dataset
-
-    filtered = []
-    for atoms in dataset:
-        cell: Cell = atoms.cell
-        a, b, c, _, _, _ = cell.cellpar()
-        z_positions = atoms.positions[:, 2]
-
-        if np.isclose(a, b, rtol=0.05) and np.isclose(a, c):
-            filtered.append(atoms)
-        elif z_positions.max() <= c - d_vacuum:
             filtered.append(atoms)
 
     return filtered
@@ -91,13 +69,7 @@ def filter_by_vacuum(dataset, d_vacuum: float):
     type=str,
     help="Allowed species (e.g. -s O -s H -s Pt)",
 )
-@click.option(
-    "--d-vacuum",
-    type=float,
-    default=None,
-    help="Require the top d_vacuum (Å) of the cell to be empty (slab vacuum check)",
-)
-def select(data_dir, size, bw, out, species, d_vacuum):
+def select(data_dir, size, bw, out, species):
     """Select the most diverse configurations spanning the configuration space
     using the Maximum Set Coverage algorithm."""
     dataset = load_dataset(data_dir)
@@ -111,13 +83,6 @@ def select(data_dir, size, bw, out, species, d_vacuum):
         click.echo(
             f"Dataset filtered to {len(dataset)} structures "
             f"using species={list(species)}"
-        )
-
-    if d_vacuum is not None:
-        dataset = filter_by_vacuum(dataset, d_vacuum)
-        click.echo(
-            f"Dataset filtered to {len(dataset)} structures "
-            f"with ≥ {d_vacuum:.2f} Å vacuum on top"
         )
 
     if not dataset:
