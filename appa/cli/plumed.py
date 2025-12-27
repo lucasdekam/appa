@@ -42,7 +42,7 @@ def plumed():
 )
 @click.option(
     "--warmup",
-    type=float,
+    type=int,
     default=DEFAULT_WARMUP,
     help="Warmup period in which the CV is shifted from initial to target value",
     show_default=True,

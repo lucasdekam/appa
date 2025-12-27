@@ -4,7 +4,7 @@ import numpy as np
 
 DEFAULT_STRIDE = 10
 DEFAULT_KAPPA = 4.0
-DEFAULT_WARMUP = 2000.0
+DEFAULT_WARMUP = 2000
 
 
 def generate_plumed_volmer(
@@ -15,7 +15,7 @@ def generate_plumed_volmer(
     cv_target: float,
     kappa: float = DEFAULT_KAPPA,
     stride: int = DEFAULT_STRIDE,
-    warmup: float = DEFAULT_WARMUP,
+    warmup: int = DEFAULT_WARMUP,
     colvar_file: str = "COLVAR",
     outfile: Optional[str] = None,
 ):
@@ -38,7 +38,7 @@ def generate_plumed_volmer(
         Umbrella force constant in eV/Å^2 (default: 4.0).
     stride : int, optional
         How often to print to COLVAR, in number of timesteps (default: 10).
-    warmup: float, optional
+    warmup: int, optional
         Warm-up period in which the bias is shifted from the initial CV value
         to the target value (in number of timesteps).
     colvar_file : str, optional
