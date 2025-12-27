@@ -40,7 +40,7 @@ def generate_plumed_volmer(
         How often to print to COLVAR, in number of timesteps (default: 10).
     warmup: float, optional
         Warm-up period in which the bias is shifted from the initial CV value
-        to the target value (probably in ps).
+        to the target value (in number of timesteps).
     colvar_file : str, optional
         Name of the COLVAR output file.
     outfile : str or None, optional
@@ -65,15 +65,15 @@ d_MH: DISTANCE ATOMS={surface_id + 1},{hydrogen_id + 1}
 # Reaction coordinate xi = d(O-H) - d(Pt-H)
 xi: COMBINE ARG=d_OH,d_MH COEFFICIENTS=1,-1 PERIODIC=NO
 
-# Move restraint from initial position to target value
-mytime: TIME 
-target: MATHEVAL ARG=mytime VAR=x FUNC="{xi0:.2f}+({cv_target-xi0:.2f})*min(1,x/{warmup})" PERIODIC=NO
-
 # Harmonic umbrella restraint
-restraint: RESTRAINT ARG=xi AT=target KAPPA={kappa}
+restraint: MOVINGRESTRAINT ...
+    ARG=xi
+    STEP0=0 AT0={xi0:.2f} KAPPA0=2.0
+    STEP1={warmup} AT1={cv_target:.2f} KAPPA1={kappa}
+...
 
 # Output
-PRINT STRIDE={stride} ARG=target,xi,restraint.bias,d_OH,d_MH FILE={colvar_file}
+PRINT STRIDE={stride} ARG=restraint.xi_cntr,xi,restraint.bias,d_OH,d_MH FILE={colvar_file}
 """
 
     if outfile is not None:
