@@ -151,15 +151,15 @@ def collect(directory: Path, output: Path, fmax: float, emax: float):
         click.echo("No converged configurations found.")
         return
     click.echo(f"\nCollected {len(configs)} configurations")
+
     filtered = filter_energy_force(configs, fmax, emax)
+    if not filtered:
+        click.echo("No configurations left after filtering.")
+        return
     click.echo(
         f"Kept {len(filtered)} / {len(configs)} configurations "
         f"({len(configs) - len(filtered)} filtered)"
     )
-
-    if not filtered:
-        click.echo("No configurations left after filtering.")
-        return
 
     # Write output
     write(
