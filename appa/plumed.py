@@ -67,7 +67,7 @@ xi: COMBINE ARG=d_OH,d_MH COEFFICIENTS=1,-1 PERIODIC=NO
 
 # Move restraint from initial position to target value
 mytime: TIME 
-target: MATHEVAL ARG=mytime VAR=x FUNC="{xi0} + ({cv_target} - {xi0})*min(1,x/{warmup})" PERIODIC=NO
+target: MATHEVAL ARG=mytime VAR=x FUNC="{xi0:.2f}+({cv_target-xi0:.2f})*min(1,x/{warmup})" PERIODIC=NO
 
 # Harmonic umbrella restraint
 restraint: RESTRAINT ARG=xi AT=target KAPPA={kappa}
