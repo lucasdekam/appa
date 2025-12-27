@@ -2,7 +2,6 @@ from typing import Optional
 from ase import Atoms
 import numpy as np
 
-DEFAULT_MAX_MH_DISTANCE = 3
 DEFAULT_STRIDE = 10
 DEFAULT_KAPPA = 4.0
 DEFAULT_WARMUP = 2000.0
@@ -16,7 +15,6 @@ def generate_plumed_volmer(
     cv_target: float,
     kappa: float = DEFAULT_KAPPA,
     stride: int = DEFAULT_STRIDE,
-    max_dist_mh: float = DEFAULT_MAX_MH_DISTANCE,
     warmup: float = DEFAULT_WARMUP,
     colvar_file: str = "COLVAR",
     outfile: Optional[str] = None,
@@ -40,11 +38,9 @@ def generate_plumed_volmer(
         Umbrella force constant in eV/Å^2 (default: 4.0).
     stride : int, optional
         How often to print to COLVAR, in number of timesteps (default: 10).
-    max_dist_mh: float, optional
-        Maximum M-H distance to avoid proton escape (default: 2.8).
     warmup: float, optional
         Warm-up period in which the bias is shifted from the initial CV value
-        to the target value (number of timesteps).
+        to the target value (probably in ps).
     colvar_file : str, optional
         Name of the COLVAR output file.
     outfile : str or None, optional
@@ -60,7 +56,7 @@ def generate_plumed_volmer(
     d_MH = np.linalg.norm(pos[surface_id, :] - pos[hydrogen_id, :])
     xi0 = d_OH - d_MH
 
-    plumed_input = f"""UNITS LENGTH=A ENERGY=eV
+    plumed_input = f"""UNITS LENGTH=A ENERGY=eV TIME=ps
 
 # Distances defining the Volmer coordinate
 d_OH: DISTANCE ATOMS={oxygen_id + 1},{hydrogen_id + 1}
@@ -70,17 +66,14 @@ d_MH: DISTANCE ATOMS={surface_id + 1},{hydrogen_id + 1}
 xi: COMBINE ARG=d_OH,d_MH COEFFICIENTS=1,-1 PERIODIC=NO
 
 # Move restraint from initial position to target value
-t1: TIME 
-target: MATHEVAL ARG=t FUNC="{xi0} + ({cv_target} - {xi0})*min(1,t1/{warmup})" PERIODIC=NO
+mytime: TIME 
+target: MATHEVAL ARG=mytime VAR=x FUNC="{xi0} + ({cv_target} - {xi0})*min(1,x/{warmup})" PERIODIC=NO
 
 # Harmonic umbrella restraint
 restraint: RESTRAINT ARG=xi AT=target KAPPA={kappa}
 
-# Upper wall to avoid proton escape
-uwall: UPPER_WALLS ARG=d_MH AT={max_dist_mh} KAPPA=10.0
-
 # Output
-PRINT STRIDE={stride} ARG=xi,restraint.bias,uwall.bias,d_OH,d_MH FILE={colvar_file}
+PRINT STRIDE={stride} ARG=target,xi,restraint.bias,d_OH,d_MH FILE={colvar_file}
 """
 
     if outfile is not None:
@@ -88,3 +81,8 @@ PRINT STRIDE={stride} ARG=xi,restraint.bias,uwall.bias,d_OH,d_MH FILE={colvar_fi
             f.write(plumed_input)
 
     return plumed_input
+
+
+# Upper wall (removed now):
+# uwall: UPPER_WALLS ARG=d_MH AT={max_dist_mh} KAPPA=10.0
+# print uwall.bias also

@@ -2,7 +2,6 @@ import click
 from ase.io import read
 
 from appa.plumed import (
-    DEFAULT_MAX_MH_DISTANCE,
     DEFAULT_KAPPA,
     DEFAULT_STRIDE,
     DEFAULT_WARMUP,
@@ -42,13 +41,6 @@ def plumed():
     show_default=True,
 )
 @click.option(
-    "--max-dist-mh",
-    type=float,
-    default=DEFAULT_MAX_MH_DISTANCE,
-    help="Maximum M-H distance, enforced by upper wall constraint",
-    show_default=True,
-)
-@click.option(
     "--warmup",
     type=float,
     default=DEFAULT_WARMUP,
@@ -75,7 +67,6 @@ def volmer(
         cv_target=cv_target,
         kappa=kappa,
         stride=stride,
-        max_dist_mh=max_dist_mh,
         warmup=warmup,
         colvar_file=f"COLVAR_{cv_target}",
         outfile="plumed.dat",
