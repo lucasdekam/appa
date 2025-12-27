@@ -8,6 +8,7 @@ import yaml
 import click
 import numpy as np
 
+from ase import Atoms
 from ase.io import write, read
 from ase.calculators.vasp import Vasp
 from pymatgen.io.vasp.outputs import Vasprun
@@ -18,7 +19,7 @@ def print_percentiles(name, data, percentiles=(0, 1, 25, 50, 75, 99, 100)):
     vals = np.percentile(data, percentiles)
     click.echo(f"\n{name} percentiles:")
     for p, v in zip(percentiles, vals):
-        click.echo(f"  {p:>3}% : {v: .4f}")
+        click.echo(f"  {p:>3}% : {v:7.2f}")
 
 
 def print_histogram(name, data, bins=20, width=40):
@@ -28,40 +29,10 @@ def print_histogram(name, data, bins=20, width=40):
     click.echo(f"\n{name} histogram:")
     for h, lo, hi in zip(hist, edges[:-1], edges[1:]):
         bar = "█" * int(np.ceil(h * width))
-        click.echo(f"{lo: .3f} - {hi: .3f} | {bar}")
+        click.echo(f"{lo:7.2f} - {hi:7.2f} | {bar}")
 
 
-@click.group()
-def vasp():
-    """VASP batch job utilities."""
-    pass
-
-
-@vasp.command("collect")
-@click.argument(
-    "directory",
-    type=click.Path(exists=True, file_okay=False, path_type=Path),
-)
-@click.option(
-    "-o",
-    "--output",
-    default="collected.xyz",
-    show_default=True,
-    type=click.Path(dir_okay=False, path_type=Path),
-    help="Output extxyz file.",
-)
-@click.option(
-    "--fmax",
-    default=10,
-    show_default=True,
-    type=float,
-    help="Maximum allows force magnitude in eV/Å",
-)
-def collect(directory: Path, output: Path, fmax: float):
-    """
-    Collect VASP outputs, analyze energy/force distributions,
-    filter outliers, and write to extxyz.
-    """
+def read_and_check_results(directory: Path) -> list[Atoms]:
     configs = []
 
     # Collect configurations
@@ -97,17 +68,16 @@ def collect(directory: Path, output: Path, fmax: float):
 
         configs.append(atoms)
 
-    if not configs:
-        click.echo("No converged configurations found.")
-        return
+    return configs
 
-    # Analyze energies & forces
+
+def filter_energy_force(
+    configs: list[Atoms], fmax: float, emax_fraction: float
+) -> list[Atoms]:
     energies = np.array([a.info["DFT_energy"] for a in configs])
     max_forces = np.array(
         [np.linalg.norm(a.arrays["DFT_forces"], axis=1).max() for a in configs]
     )
-
-    click.echo(f"\nCollected {len(configs)} configurations")
 
     print_percentiles("Energy (eV)", energies)
     print_histogram("Energy (eV)", energies)
@@ -117,11 +87,11 @@ def collect(directory: Path, output: Path, fmax: float):
 
     # Filtering criteria
     mean_energy = energies.mean()
-    e_max = mean_energy * 0.9
+    e_max = mean_energy * (1 - emax_fraction)  # energy always negative
 
     click.echo("\nFiltering criteria:")
     click.echo(f"  Energy <= {e_max:.3f} eV")
-    click.echo(f"  Max force <= {fmax:.1f} eV/Å")
+    click.echo(f"  Max |force| <= {fmax:.1f} eV/Å")
 
     filtered = []
     for a in configs:
@@ -135,6 +105,53 @@ def collect(directory: Path, output: Path, fmax: float):
 
         filtered.append(a)
 
+    return filtered
+
+
+@click.group()
+def vasp():
+    """VASP batch job utilities."""
+    pass
+
+
+@vasp.command("collect")
+@click.argument(
+    "directory",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+)
+@click.option(
+    "-o",
+    "--output",
+    default="collected.xyz",
+    show_default=True,
+    type=click.Path(dir_okay=False, path_type=Path),
+    help="Output extxyz file.",
+)
+@click.option(
+    "--fmax",
+    default=10,
+    show_default=True,
+    type=float,
+    help="Maximum allows force magnitude in eV/Å",
+)
+@click.option(
+    "--emax",
+    default=0.1,
+    show_default=True,
+    type=float,
+    help="Maximum deviation from mean energy as a fraction of mean energy",
+)
+def collect(directory: Path, output: Path, fmax: float, emax: float):
+    """
+    Collect VASP outputs, analyze energy/force distributions,
+    filter outliers, and write to extxyz.
+    """
+    configs = read_and_check_results(directory)
+    if not configs:
+        click.echo("No converged configurations found.")
+        return
+    click.echo(f"\nCollected {len(configs)} configurations")
+    filtered = filter_energy_force(configs, fmax, emax)
     click.echo(
         f"Kept {len(filtered)} / {len(configs)} configurations "
         f"({len(configs) - len(filtered)} filtered)"
