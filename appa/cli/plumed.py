@@ -1,6 +1,13 @@
 import click
+from ase.io import read
 
-from appa.plumed import generate_plumed_volmer
+from appa.plumed import (
+    DEFAULT_MAX_MH_DISTANCE,
+    DEFAULT_KAPPA,
+    DEFAULT_STRIDE,
+    DEFAULT_WARMUP,
+    generate_plumed_volmer,
+)
 
 
 @click.group()
@@ -10,6 +17,7 @@ def plumed():
 
 
 @plumed.command("volmer")
+@click.argument("xyz", type=str)
 @click.option("--oxygen_id", "-o", type=int)
 @click.option("--hydrogen_id", "-h", type=int)
 @click.option("--surface_id", "-s", type=int)
@@ -22,22 +30,33 @@ def plumed():
 @click.option(
     "--kappa",
     type=float,
-    default=4.0,
+    default=DEFAULT_KAPPA,
     help="Umbrella strength (eV/Å^2)",
+    show_default=True,
 )
 @click.option(
     "--stride",
     type=int,
-    default=10,
+    default=DEFAULT_STRIDE,
     help="How often to print to COLVAR",
+    show_default=True,
 )
 @click.option(
     "--max-dist-mh",
     type=float,
-    default=2.8,
+    default=DEFAULT_MAX_MH_DISTANCE,
     help="Maximum M-H distance, enforced by upper wall constraint",
+    show_default=True,
+)
+@click.option(
+    "--warmup",
+    type=float,
+    default=DEFAULT_WARMUP,
+    help="Warmup period in which the CV is shifted from initial to target value",
+    show_default=True,
 )
 def volmer(
+    xyz,
     oxygen_id,
     hydrogen_id,
     surface_id,
@@ -45,16 +64,19 @@ def volmer(
     kappa,
     stride,
     max_dist_mh,
+    warmup,
 ):
     """Write plumed.dat input file for a Volmer step calculation."""
     generate_plumed_volmer(
-        oxygen_id,
-        hydrogen_id,
-        surface_id,
-        cv_target,
-        kappa,
-        stride,
-        max_dist_mh,
+        atoms=read(xyz),
+        oxygen_id=oxygen_id,
+        hydrogen_id=hydrogen_id,
+        surface_id=surface_id,
+        cv_target=cv_target,
+        kappa=kappa,
+        stride=stride,
+        max_dist_mh=max_dist_mh,
+        warmup=warmup,
         colvar_file=f"COLVAR_{cv_target}",
         outfile="plumed.dat",
     )
