@@ -27,7 +27,7 @@ def print_histogram(name, data, bins=20, width=40):
 
     click.echo(f"\n{name} histogram:")
     for h, lo, hi in zip(hist, edges[:-1], edges[1:]):
-        bar = "█" * np.ceil(h * width)
+        bar = "█" * int(np.ceil(h * width))
         click.echo(f"{lo: .3f} - {hi: .3f} | {bar}")
 
 
