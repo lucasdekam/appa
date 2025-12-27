@@ -14,6 +14,23 @@ from pymatgen.io.vasp.outputs import Vasprun
 from pymatgen.io.ase import AseAtomsAdaptor
 
 
+def print_percentiles(name, data, percentiles=(0, 1, 25, 50, 75, 99, 100)):
+    vals = np.percentile(data, percentiles)
+    click.echo(f"\n{name} percentiles:")
+    for p, v in zip(percentiles, vals):
+        click.echo(f"  {p:>3}% : {v: .4f}")
+
+
+def print_histogram(name, data, bins=20, width=40):
+    hist, edges = np.histogram(data, bins=bins)
+    hist = hist / hist.max()  # normalize for bar width
+
+    click.echo(f"\n{name} histogram:")
+    for h, lo, hi in zip(hist, edges[:-1], edges[1:]):
+        bar = "█" * np.ceil(h * width)
+        click.echo(f"{lo: .3f} - {hi: .3f} | {bar}")
+
+
 @click.group()
 def vasp():
     """VASP batch job utilities."""
@@ -33,12 +50,21 @@ def vasp():
     type=click.Path(dir_okay=False, path_type=Path),
     help="Output extxyz file.",
 )
-def collect(directory: Path, output: Path):
+@click.option(
+    "--fmax",
+    default=10,
+    show_default=True,
+    type=float,
+    help="Maximum allows force magnitude in eV/Å",
+)
+def collect(directory: Path, output: Path, fmax: float):
     """
-    Collect VASP outputs from numbered subdirectories and write to extxyz.
+    Collect VASP outputs, analyze energy/force distributions,
+    filter outliers, and write to extxyz.
     """
     configs = []
 
+    # Collect configurations
     for subdir in sorted(directory.iterdir()):
         if not subdir.is_dir():
             continue
@@ -67,25 +93,67 @@ def collect(directory: Path, output: Path):
         atoms.arrays["DFT_forces"] = vasprun.ionic_steps[-1]["forces"]
         atoms.info["DFT_energy"] = float(vasprun.final_energy)
 
-        click.echo(
-            f"INFO: Collected config from {subdir}, "
-            f"energy {atoms.info['DFT_energy']:.3f} eV"
-        )
+        click.echo(f"{subdir}: E={atoms.info['DFT_energy']:.3f} eV")
 
         configs.append(atoms)
 
     if not configs:
-        click.echo("No converged configurations written.")
+        click.echo("No converged configurations found.")
         return
 
+    # Analyze energies & forces
+    energies = np.array([a.info["DFT_energy"] for a in configs])
+    max_forces = np.array(
+        [np.linalg.norm(a.arrays["DFT_forces"], axis=1).max() for a in configs]
+    )
+
+    click.echo(f"\nCollected {len(configs)} configurations")
+
+    print_percentiles("Energy (eV)", energies)
+    print_histogram("Energy (eV)", energies)
+
+    print_percentiles("Max |force| (eV/Å)", max_forces)
+    print_histogram("Max |force| (eV/Å)", max_forces)
+
+    # Filtering criteria
+    mean_energy = energies.mean()
+    e_max = mean_energy * 0.9
+
+    click.echo("\nFiltering criteria:")
+    click.echo(f"  Energy <= {e_max:.3f} eV")
+    click.echo(f"  Max force <= {fmax:.1f} eV/Å")
+
+    filtered = []
+    for a in configs:
+        e = a.info["DFT_energy"]
+        f = np.abs(a.arrays["DFT_forces"]).max()
+
+        if not (e <= e_max):
+            continue
+        if f > fmax:
+            continue
+
+        filtered.append(a)
+
+    click.echo(
+        f"Kept {len(filtered)} / {len(configs)} configurations "
+        f"({len(configs) - len(filtered)} filtered)"
+    )
+
+    if not filtered:
+        click.echo("No configurations left after filtering.")
+        return
+
+    # Write output
     write(
         output,
-        configs,
+        filtered,
         format="extxyz",
         columns=["symbols", "positions", "DFT_forces"],
         write_results=False,
     )
-    click.echo(f"Wrote {len(configs)} configurations to {output}")
+
+    click.echo(f"Wrote {len(filtered)} configurations to {output}")
 
 
 @vasp.command("input")
