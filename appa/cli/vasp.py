@@ -132,7 +132,7 @@ def vasp():
     default=10,
     show_default=True,
     type=float,
-    help="Maximum allows force magnitude in eV/Å",
+    help="Maximum allowed force magnitude in eV/Å",
 )
 @click.option(
     "--emax",
