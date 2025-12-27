@@ -55,7 +55,6 @@ def volmer(
     cv_target,
     kappa,
     stride,
-    max_dist_mh,
     warmup,
 ):
     """Write plumed.dat input file for a Volmer step calculation."""
