@@ -4,6 +4,7 @@ import os
 
 import numpy as np
 import click
+from ase import Atoms
 from ase.io import read, write
 
 from quests.descriptor import get_descriptors_multicomponent
@@ -11,7 +12,7 @@ from quests.entropy import entropy
 from quests.compression.fps import msc
 
 
-def load_dataset(data_dir: str) -> List:
+def load_dataset(data_dir: str) -> List[Atoms]:
     dataset = []
     for pattern in ["*.extxyz", "*.xyz", "*.traj"]:
         for fname in glob.glob(os.path.join(data_dir, pattern)):
@@ -22,7 +23,9 @@ def load_dataset(data_dir: str) -> List:
     return dataset
 
 
-def filter_by_species(dataset, allowed_species: Optional[List[str]]):
+def filter_by_species(
+    dataset: List[Atoms], allowed_species: Optional[List[str]]
+) -> List[Atoms]:
     if allowed_species is None:
         return dataset
 
@@ -34,6 +37,14 @@ def filter_by_species(dataset, allowed_species: Optional[List[str]]):
         if symbols.issubset(allowed):
             filtered.append(atoms)
 
+    return filtered
+
+
+def filter_out_isolated_atoms(dataset: List[Atoms]):
+    filtered = []
+    for atoms in dataset:
+        if len(atoms) > 1:
+            filtered.append(atoms)
     return filtered
 
 
@@ -84,6 +95,8 @@ def select(data_dir, size, bw, out, species):
             f"Dataset filtered to {len(dataset)} structures "
             f"using species={list(species)}"
         )
+
+    dataset = filter_out_isolated_atoms(dataset)
 
     if not dataset:
         click.echo("No structures left after filtering")
