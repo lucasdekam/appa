@@ -64,7 +64,7 @@ metad: METAD ...
     ARG=d_OH,d_MH 
     PACE=1000 
     HEIGHT=0.005
-    SIGMA=0.05
+    SIGMA=0.05,0.05
     FILE=HILLS 
     BIASFACTOR=10.0 
     TEMP=300.0
