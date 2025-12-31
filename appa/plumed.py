@@ -58,7 +58,7 @@ d_OH: DISTANCE ATOMS={oxygen_id + 1},{hydrogen_id + 1}
 d_MH: DISTANCE ATOMS={surface_id + 1},{hydrogen_id + 1}
 
 # Keeps OH and MH distances within a physical range
-uwall: UPPER_WALLS ARG=d_OH,d_MH AT=4.5,4.5 KAPPA=10.0,10.0
+uwall: UPPER_WALLS ARG=d_OH,d_MH AT=5.0,5.0 KAPPA=100.0,100.0
 
 metad: METAD ...
     ARG=d_OH,d_MH 
@@ -69,8 +69,8 @@ metad: METAD ...
     BIASFACTOR=10.0 
     TEMP=300.0
     GRID_MIN=0.5,0.5 
-    GRID_MAX=4.5,4.5 
-    GRID_BIN=200,200
+    GRID_MAX=5.5,5.5
+    GRID_BIN=250,250
 ...
 
 # Output
