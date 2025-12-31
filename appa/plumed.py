@@ -68,7 +68,7 @@ xi: COMBINE ARG=d_OH,d_MH COEFFICIENTS=1,-1 PERIODIC=NO
 # Harmonic umbrella restraint
 restraint: MOVINGRESTRAINT ...
     ARG=xi
-    STEP0=0 AT0={xi0:.2f} KAPPA0=2.0
+    STEP0=0 AT0={xi0:.2f} KAPPA0=0.0
     STEP1={warmup} AT1={cv_target:.2f} KAPPA1={kappa}
 ...
 
