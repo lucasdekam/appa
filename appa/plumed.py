@@ -35,19 +35,19 @@ pos_H: POSITION ATOM={hydrogen_number}
 z_H: COMBINE ARG=pos_H.z COEFFICIENTS=1.0 PARAMETERS={z_pt:.2f} POWERS=1 PERIODIC=NO
 
 # Walls
-uwall: UPPER_WALLS ARG=z_H AT=5.0 KAPPA=100.0 
+uwall: UPPER_WALLS ARG=z_H AT=5.0 KAPPA=100.0
 lwall: LOWER_WALLS ARG=z_H AT=-1.0 KAPPA=100.0
 
 # Metadynamics
 metad: METAD ...
     ARG=cn,z_H
-    PACE=500 HEIGHT=0.005 SIGMA=0.1,0.1
-    GRID_MIN=-0.1,-1.0 GRID_MAX=3.0,6.0 GRID_BIN=300,300
+    PACE=1000 HEIGHT=0.005 SIGMA=0.1,0.1
+    GRID_MIN=-0.1,-1.5 GRID_MAX=3.0,6.0 GRID_BIN=300,300
     BIASFACTOR=10.0 TEMP=300.0 FILE=HILLS
 ...
 
 # Output
-PRINT STRIDE={stride} ARG=metad.bias,uwall.bias,d_OH,d_MH FILE={colvar_file}
+PRINT STRIDE={stride} ARG=metad.bias,uwall.bias,z_H,cn FILE={colvar_file}
 """
 
     if outfile is not None:
