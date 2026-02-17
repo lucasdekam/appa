@@ -1,12 +1,10 @@
-![Appa Icon](https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/0a1d2e33-9dcf-47be-8ecd-c0af5458c545/drieup-065047ff-715e-467b-a309-31ff11b7a61a.jpg/v1/fill/w_150,h_150,q_75,strp/appa_icon_by_rufftoon_drieup-fullview.jpg?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7ImhlaWdodCI6Ijw9MjAwIiwicGF0aCI6IlwvZlwvMGExZDJlMzMtOWRjZi00N2JlLThlY2QtYzBhZjU0NThjNTQ1XC9kcmlldXAtMDY1MDQ3ZmYtNzE1ZS00NjdiLWEzMDktMzFmZjExYjdhNjFhLmpwZyIsIndpZHRoIjoiPD0yMDAifV1dLCJhdWQiOlsidXJuOnNlcnZpY2U6aW1hZ2Uub3BlcmF0aW9ucyJdfQ.nmOkivf8pvdmI2b2LL6Qa_qBiid5-RG7JfypiQdTHZ8)
+<img src="examples/appa.png" alt="appa's lost days" width="190"/>
 
 # Appa
 
 Miscellaneous code I use in my research.
 
 (Appa is a pet flying bison in the series *Avatar: The Last Airbender*. He speeds up the journey of the Avatar by flying him and his friends around.)
-
-Icon by *rufftoon* on [DeviantArt](https://www.deviantart.com/rufftoon/art/Appa-Icon-46208689)
 
 ## Building interfaces
 The `appa.build` module builds simulation cells common in electrocatalysis research. For example, the `Electrode` class builds  fcc(111) electrode surfaces and allows for automated adding of hydrogen on top and fcc sites.

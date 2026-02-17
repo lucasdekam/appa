@@ -1,0 +1,45 @@
+interface:
+  encut: 450
+  kspacing: 0.18
+  xc: rpbe
+  ivdw: 11
+  ediff: 1.0e-6
+  ismear: 0
+  sigma: 0.1
+  lreal: Auto
+  nelm: 200
+  algo: Fast
+  ldipol: True
+  idipol: 3
+  lwave: False
+  lcharg: False
+  lasph: True
+bulk:
+  encut: 450
+  kspacing: 0.18
+  xc: rpbe
+  ivdw: 11
+  ediff: 1.0e-6
+  ismear: 0
+  sigma: 0.1
+  lreal: Auto
+  nelm: 200
+  algo: Fast
+  lwave: False
+  lcharg: False
+  lasph: True
+IsolatedAtom:
+  encut: 450
+  kpts: [1, 1, 1]
+  gamma: True
+  xc: rpbe
+  ediff: 1.0e-6
+  ismear: 0
+  sigma: 0.1
+  lreal: Auto
+  ispin: 2
+  nelm: 200
+  algo: Fast
+  lwave: False
+  lcharg: False
+  lasph: True

@@ -14,21 +14,8 @@ from scipy import constants
 
 def calc_number(rho: float, v: float, mol_mass: float) -> int:
     """
-    Calculate the number of molecules based on density, volume, and molecular mass.
-
-    Parameters
-    ----------
-    rho : float
-        Density in g/cm^3.
-    v : float
-        Volume in Å^3.
-    mol_mass : float
-        Molecular mass in g/mol.
-
-    Returns
-    -------
-    int
-        Number of molecules.
+    Calculate the number of molecules based on density in g/cm^3,
+    volume in Å^3, and molecular mass in g/mol.
     """
     n = (
         rho
@@ -41,19 +28,8 @@ def calc_number(rho: float, v: float, mol_mass: float) -> int:
 
 def calc_water_number(rho: float, v: float) -> int:
     """
-    Calculate the number of water molecules based on density and volume.
-
-    Parameters
-    ----------
-    rho : float
-        Water density in g/cm^3.
-    v : float
-        Volume in Å^3.
-
-    Returns
-    -------
-    int
-        Number of water molecules.
+    Calculate the number of water molecules based on density in g/cm^3
+    and volume in Å^3.
     """
     return calc_number(rho, v, 18.015)
 
@@ -341,31 +317,10 @@ class Interface:
         self.atoms += waterbox
         return self.atoms
 
-    def write(
-        self,
-        fname: str,
-        seed: int = -1,
-        verbose: bool = False,
-    ) -> None:
-        """
-        Write the interface structure to a file.
-
-        Parameters
-        ----------
-        fname : str
-            Output filename.
-        seed : int, optional
-            Random seed for reproducibility, by default -1 (random behavior).
-        verbose : bool, optional
-            If True, keeps temporary files, by default False.
-        """
-        self.add_electrolyte(seed=seed, verbose=verbose)
-        io.write(fname, self.atoms)
-
 
 class Electrode:
     """
-    Represents an electrode structure based an FCC (111) surface.
+    Represents an electrode structure based an fcc(111) surface.
 
     Parameters
     ----------
@@ -374,7 +329,7 @@ class Electrode:
     size : List[int]
         The dimensions of the electrode in terms of unit cells [nx, ny, nz].
     a : float
-        The lattice constant of the material.
+        The lattice constant of the material. If None, takes the ASE default.
     fix_layers : int, optional
         The number of atomic layers to fix in the structure (default is 2).
     """
@@ -383,7 +338,7 @@ class Electrode:
         self,
         material: str,
         size: List[int],
-        a: float,
+        a: Optional[float] = None,
         fix_layers: int = 2,
     ):
         self.atoms = build.fcc111(
@@ -428,44 +383,7 @@ class Electrode:
                     )
 
 
-def add_cap(
-    atoms: Atoms, use_indices: list[int], z_position: float, element: str = "Ne"
-) -> None:
-    """
-    Add a cap layer to prevent electrolyte diffusion into the vacuum region.
-
-    Parameters
-    ----------
-    atoms : Atoms
-        The atomic structure to which the cap layer will be added.
-    use_indices : list[int]
-        Indices of atoms whose x,y positions will be used to define the cap layer.
-    z_position : float
-        The z-coordinate for the cap layer.
-    element : str, optional
-        Chemical symbol of the cap layer atoms, by default "Ne".
-    """
-    cap_pos = atoms.get_positions()[use_indices, :]
-    cap_pos[:, 2] = z_position
-    cap = Atoms(
-        symbols=element * len(use_indices),
-        positions=cap_pos,
-        cell=atoms.cell,
-    )
-    atoms += cap
-
-    for cstr in atoms.constraints:
-        if isinstance(cstr, constraints.FixAtoms):
-            fix_atoms = cstr
-            break
-
-    old_fixed_indices = list(fix_atoms.index)
-    cap_indices = [a.index for a in atoms if a.symbol == element]
-    atoms.set_constraint()
-    atoms.set_constraint(constraints.FixAtoms(indices=old_fixed_indices + cap_indices))
-
-
-def bulk_electrolyte(
+def build_bulk_electrolyte(
     cell: tuple[float, float, float],
     rho: float = 1.0,
     seed: int = -1,

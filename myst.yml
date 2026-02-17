@@ -1,0 +1,15 @@
+# See docs at: https://mystmd.org/guide/frontmatter
+version: 1
+project:
+  id: cfc2ae66-715c-4eeb-8ea0-62697b55018b
+  # title:
+  # description:
+  # keywords: []
+  # authors: []
+  github: https://github.com/lucasdekam/appa
+  # To autogenerate a Table of Contents, run "jupyter book init --write-toc"
+site:
+  template: book-theme
+  # options:
+  #   favicon: favicon.ico
+  #   logo: site_logo.png
