@@ -64,10 +64,9 @@ def equilibrate(
     device = "cuda" if torch.cuda.is_available() else "cpu"
     click.echo(f"Using device: {device}")
 
-    calc_MAD = NequIPCalculator.from_compiled_model(compile_path=model, device=device)
-    dft_d3 = TorchDFTD3Calculator(device=device, xc="pbesol", damping="bj", cutoff=10)
-
-    combined_calc = SumCalculator([calc_MAD, dft_d3])
+    calc_mlp = NequIPCalculator.from_compiled_model(compile_path=model, device=device)
+    dft_d3 = TorchDFTD3Calculator(device=device, xc="pbe", damping="bj", cutoff=10)
+    combined_calc = SumCalculator([calc_mlp, dft_d3])
     atoms.calc = combined_calc
 
     zmax = atoms.positions[:, 2].max() + z_buffer
