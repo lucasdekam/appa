@@ -19,6 +19,8 @@ DUMP_STAGENAME = "Dump output settings"
 RUN_STAGENAME = "Running"
 RERUN_STAGENAME = "Rerun"
 
+ALLOWED_ARCHS = ["mace-mliap", "grace", "nequip", "allegro", "mtt"]
+
 
 class AtomisticSimulation(LammpsInputFile):
     """
@@ -67,7 +69,7 @@ class AtomisticSimulation(LammpsInputFile):
     def set_potential(
         self,
         model_file: os.PathLike,
-        architecture: Literal["mace-mliap", "grace", "mtt"] = "mace-mliap",
+        architecture: str = "mace-mliap",
     ):
         """
         Define commands for the interatomic potential (force field).
@@ -76,7 +78,7 @@ class AtomisticSimulation(LammpsInputFile):
         ----------
         model_file : os.PathLike
             Path to the potential model file.
-        architecture : {'mace-mliap', 'grace', 'mtt'}
+        architecture : {'mace-mliap', 'grace', 'mtt', ...}
             Type of architecture for the potential. Default is 'mace-mliap'.
 
         Examples
@@ -114,8 +116,19 @@ class AtomisticSimulation(LammpsInputFile):
                     f"pair_coeff * * {formatted_numbers}",
                 ],
             )
+        elif architecture in ["nequip", "allegro"]:
+            self.add_stage(
+                stage_name=POTL_STAGENAME,
+                commands=[
+                    f"pair_style {architecture}",
+                    f"pair_coeff * * {model_file} {formatted_symbols}",
+                ],
+            )
         else:
-            raise NotImplementedError(f"Architecture {architecture} is not recognized.")
+            raise NotImplementedError(
+                f"Architecture {architecture} is not recognized. "
+                f"Allowed architectures: {', '.join(ALLOWED_ARCHS)}"
+            )
 
     def set_rerun(
         self,

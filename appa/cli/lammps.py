@@ -13,7 +13,7 @@ from ase.constraints import FixAtoms
     "--architecture",
     type=str,
     required=True,
-    help="appa-supported architecture (mace-mliap, grace, mtt)",
+    help="appa-supported architecture (mace-mliap, grace, mtt, nequip)",
 )
 @click.option(
     "--model",
