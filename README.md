@@ -1,4 +1,4 @@
-<img src="examples/appa.png" alt="appa's lost days" width="190"/>
+<img src="docs/appa.png" alt="appa's lost days" width="190"/>
 
 # Appa
 
