@@ -85,6 +85,8 @@ module load 2025
 module load OpenMPI/5.0.7-GCC-14.2.0
 module load CUDA/12.8.0
 module load CMake/3.31.3-GCCcore-14.2.0
+module load OpenBLAS/0.3.29-GCC-14.2.0
+module load FFTW.MPI/3.3.10-gompi-2025a
 
 source ~/.bashrc
 conda activate mace  # activate the correct environment 
@@ -161,9 +163,9 @@ In the `build` folder, you can run this jobscript:
 #!/bin/bash  
 #SBATCH --job-name=build  
 #SBATCH --nodes=1  
-#SBATCH --ntasks-per-node=1 # Number of tasks per node (adjust based on cores per node)  
+#SBATCH --ntasks-per-node=1   
 #SBATCH --cpus-per-task=18  
-#SBATCH --time=2:00:00 # Adjust based on the expected build time  
+#SBATCH --time=2:00:00 
 #SBATCH --partition=gpu_a100  
 #SBATCH --gpus-per-node=1  
  
