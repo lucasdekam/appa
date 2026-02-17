@@ -13,27 +13,32 @@ from appa.md import run_langevin_md
     "--output",
     default="equilibrated.xyz",
     help="Output name of equilibrated structure",
+    show_default=True,
 )
 @click.option(
     "--temperature",
     default=300.0,
     help="MD temperature in K.",
+    show_default=True,
 )
 @click.option("--steps", default=1000)
 @click.option(
     "--z-buffer",
     default=2.0,
     help="Wall position from maximum position of input structure",
+    show_default=True,
 )
 @click.option(
     "--k-wall",
     default=1.0,
     help="Wall spring force constant (eV/Å^2)",
+    show_default=True,
 )
 @click.option(
     "--traj",
     default=None,
     help="Output trajectory name",
+    show_default=True,
 )
 def equilibrate(
     structure,
