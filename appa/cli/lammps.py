@@ -13,7 +13,7 @@ from ase.constraints import FixAtoms
     "--architecture",
     type=str,
     required=True,
-    help="appa-supported architecture (mace-mliap, grace, mtt, nequip)",
+    help="appa-supported architecture (mace-mliap, grace, mtt, nequip...)",
 )
 @click.option(
     "--model",
@@ -25,30 +25,35 @@ from ase.constraints import FixAtoms
     "--steps",
     type=int,
     default=1000,
+    show_default=True,
     help="Number of steps to run",
 )
 @click.option(
     "--temperature",
     type=float,
     default=300,
+    show_default=True,
     help="MD temperature (K)",
 )
 @click.option(
     "--timestep",
     type=float,
     default=0.0005,
+    show_default=True,
     help="MD timestep (ps)",
 )
 @click.option(
     "--dump-freq",
     type=int,
     default=20,
+    show_default=True,
     help="How many steps between saving frames to the dump file",
 )
 @click.option(
     "--plumed-file",
     type=str,
     default=None,
+    show_default=True,
     help="Path to PLUMED input file",
 )
 def lammps(
