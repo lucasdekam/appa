@@ -1,3 +1,9 @@
+---
+kernelspec:
+  name: python3
+  display_name: 'Python 3'
+---
+
 # Enhanced sampling
 
 Given a reasonably equilibrated configuration we can try enhanced sampling of the Volmer step. To generate a simple `plumed.dat` file, you can use `appa plumed volmer`. View the structure and note the (zero-based) indices of the hydrogen atom that you want to transfer, the nearest surface atom, and the most accessible oxygen atom. Then use the command as follows:
@@ -61,16 +67,17 @@ module purge
 
 You can plot it to get a result like this:
 
-```{code-cell}
+```{code-cell} python
 import numpy as np
 import matplotlib.pyplot as plt
+plt.style.use('data/lucas.mplstyle')
 
 data = np.loadtxt('data/fes.dat', comments='#')
 cv1 = data[:,0]
 cv2 = data[:,1]
 energy = data[:,2]
 
-plt.figure(figsize=(5,4))
+plt.figure(figsize=(4,3))
 plt.tricontourf(cv1, cv2, energy, levels=10, cmap='magma')
 plt.colorbar()
 plt.xlabel('d_OH')

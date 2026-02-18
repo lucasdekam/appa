@@ -1,3 +1,9 @@
+---
+kernelspec:
+  name: python3
+  display_name: 'Python 3'
+---
+
 # Building 
 
 This page describes the `appa` tools to set up initial configurations for MD simulations of electrochemical interfaces.
@@ -35,7 +41,7 @@ For example,
 appa build -o interface.xyz --material Pt --size 4 4 4 --d-water 8 --d-vacuum 20 --a 3.94 --coverage 0.0833 --ptop 1
 ```
 
-```{code-cell}
+```{code-cell} python
 from ase.io import read
 from ase.visualize import view
 
@@ -67,7 +73,7 @@ Options:
 
 Equilibrating the structure shown above for 2000 steps at a temperature of 300K:
 
-```{code-cell}
+```{code-cell} python
 atoms = read('data/equilibrated.xyz')
 atoms.wrap()
 view(atoms, viewer='x3d')
