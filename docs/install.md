@@ -53,13 +53,15 @@ It's possible to run NequIP with LAMMPS but I have not tested it yet. I did incl
 The [MACE software stack](https://mace-docs.readthedocs.io/en/latest/guide/lammps_mliap.html) is probably the most complicated. You need to `pip install` the following modules in your environment. **At the time of writing Python version 3.11 is recommended.**
 
 ```shell
-mace_torch
+mace-torch
 cuequivariance  
 cuequivariance-ops-cu12
 cuequivariance-ops-torch-cu12
 cuequivariance-torch
 cupy-cuda12x
 ```
+
+Also, [install the torch version](https://pytorch.org/get-started/locally/) matching your CUDA version (below it is suggested to load version 12.8).
 
 For LAMMPS, make sure you have the correct Python dependencies installed, then
 ```shell
