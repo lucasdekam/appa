@@ -60,18 +60,22 @@ def filter_out_isolated_atoms(dataset: List[Atoms]):
     "--size",
     type=int,
     default=100,
+    show_default=True,
     help="Number of structures to select",
 )
 @click.option(
     "--bw",
     type=float,
     default=0.065,
+    show_default=True,
     help="Bandwidth for entropy estimation kernel",
 )
 @click.option(
     "--out",
     "-o",
     default="selected.xyz",
+    show_default=True,
+    help="Output XYZ file",
 )
 @click.option(
     "--species",
