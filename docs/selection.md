@@ -2,6 +2,8 @@
 
 When you have gathered several dozens of structures describing your system of interest, you can use them to build a training set. `appa` contains tools for structure selection and setting up DFT calculations with VASP.
 
+If you do not want to do this, you can find some example training data in the [examples folder](https://github.com/lucasdekam/appa/tree/main/examples/data) of this repo. `platinum-solvated-protons.xyz` and `platinum-water-dissociation` should include some near-transition state structures.
+
 ## Structure selection
 
 The command `appa select` uses the [Maximum Set Coverage algorithm](https://doi.org/10.48550/arXiv.2511.10561) from the `quests` [package](https://github.com/dskoda/quests) to select diverse structures from a dataset. To use this tool you need to have `quests` installed (available with `pip`).
