@@ -31,7 +31,18 @@ You can then setup a molecular dynamics run with `appa lammps`, such as
 appa lammps initial.xyz --architecture grace --model ~/plumed-test/train/seed/1/final_model --steps 800000 --plumed-file plumed.dat
 ```
 
-You can also write different PLUMED files, such as umbrella sampling of a reaction coordinate suggested by [Kronberg & Laasonen](https://doi.org/10.1021/acscatal.1c00538), and [Santos et al.](doi.org/10.1016/j.jelechem.2024.118044):
+You can also write different PLUMED files, such as umbrella sampling of a reaction coordinate suggested by [Kronberg & Laasonen](https://doi.org/10.1021/acscatal.1c00538), and [Santos et al.](doi.org/10.1016/j.jelechem.2024.118044).
+
+With some Python code you can define the initial $\xi$:
+
+```python
+pos = atoms.positions
+d_OH = np.linalg.norm(pos[oxygen_id, :] - pos[hydrogen_id, :])
+d_MH = np.linalg.norm(pos[surface_id, :] - pos[hydrogen_id, :])
+xi0 = d_OH - d_MH
+```
+
+Upon defining the number of warmup timesteps, a kappa and a cv_target, you can use Python string formatting to write part of a PLUMED file such as
 
 ```sh
 # Reaction coordinate xi = d(O-H) - d(Pt-H)
@@ -43,11 +54,6 @@ restraint: MOVINGRESTRAINT ...
     STEP0=0 AT0={xi0:.2f} KAPPA0=0.0
     STEP1={warmup} AT1={cv_target:.2f} KAPPA1={kappa}
 ...
-
-pos = atoms.positions
-d_OH = np.linalg.norm(pos[oxygen_id, :] - pos[hydrogen_id, :])
-d_MH = np.linalg.norm(pos[surface_id, :] - pos[hydrogen_id, :])
-xi0 = d_OH - d_MH
 ```
 
 However, in my experience this results in the proton diffusing along the surface, creating a large $d_\mathrm{OH}$ and $d_\mathrm{MH}$, resulting in a $\xi\approx0$ but a structure very different from the expected transition state. Adding more training data around the TS might help.
