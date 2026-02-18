@@ -38,7 +38,7 @@ jobs:
       - name: Install Jupyter Book (via myst)
         run: npm install -g jupyter-book
       - name: Install Python packages
-        run: pip install ase matplotlib
+        run: pip install ase matplotlib jupyter
       - name: Build HTML Assets
         working-directory: docs
         run: jupyter-book build --execute --html
