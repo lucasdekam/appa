@@ -37,15 +37,15 @@ jobs:
           node-version: 18.x
       - name: Install Jupyter Book (via myst)
         run: npm install -g jupyter-book
+      - name: Install Python packages
         run: pip install ase matplotlib
       - name: Build HTML Assets
-        run: pushd docs
+        working-directory: docs
         run: jupyter-book build --html
-        run: popd
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'docs/_build/html'
+          path: docs/_build/html
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
