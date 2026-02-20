@@ -3,7 +3,7 @@
 To install `appa`, 
 
 ```shell
-git clone github.com/lucasdekam/appa.git
+git clone https://github.com/lucasdekam/appa.git
 cd appa
 pip install .
 ```
