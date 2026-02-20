@@ -3,14 +3,6 @@
 Training models is done by the respective packages, not through `appa`. `appa` does provide tools to extract single-atom energies, in case you do not want to include these in the training set but supply them separately.
 
 ```sh
-Usage: appa convert xyz2grace [OPTIONS] XYZ_FILE OUT_FILE
-
-  Convert an extxyz file to a GRACE-compatible DataFrame.
-
-Options:
-  --subtract-reference  Subtract reference energies from isolated atom configs
-  --help                Show this message and exit.
-(mace) [ldkam@int6 equilibrate]$ appa convert extract-isolated --help
 Usage: appa convert extract-isolated [OPTIONS] XYZ_FILE OUT_XYZ
 
   Extract isolated-atom reference energies from an XYZ file and write a new
