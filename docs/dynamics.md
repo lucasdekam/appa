@@ -75,3 +75,20 @@ srun /home/ldkam/lammps/build/lmp -k on g 1 -sf kk -pk kokkos newton on neigh ha
 If you installed NequIP without kokkos then you should be able to use the same command as for GRACE. Otherwise see the [NequIP LAMMPS interface repo](https://github.com/mir-group/pair_nequip_allegro).
 
 From the MD you get a `lammps.dump` file which you can analyze further. TODO: add a CLI tool to convert to XTC.
+
+## Output file conversion
+
+`appa` contains a handy tool to convert big LAMMPS dump files and/or XYZ files to the compressed XTC format. The XTC file then only contains the atomic positions in 5-decimal precision (and always needs the corresponding topology file `system.data` to be interpreted). For XYZ trajectories, a `system.data` file is generated.
+
+```sh
+Usage: appa convert xtc [OPTIONS]
+
+  Convert XYZ or LAMMPS dump trajectories to XTC.
+
+Options:
+  --pattern TEXT             Glob pattern for input files (e.g., './*/*.xyz').
+                             [required]
+  --format [xyz|lammpsdump]  Input format.  [required]
+  --nprocs INTEGER           Number of parallel processes.  [default: 1]
+  --help                     Show this message and exit.
+```
