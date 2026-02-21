@@ -23,7 +23,6 @@ write_input("results", atoms, params)
 
 ## Todo
 
-Writing CLI utilities, such as 
+Writing more CLI utilities, such as 
 
-* Converting `lammps.dump` into a binary format like XTC
 * Performing analysis of trained models, like parity plots
