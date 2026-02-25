@@ -145,7 +145,7 @@ Submit the jobscript to build LAMMPS.
 
 ## GRACE
 
-Find the installation instructions [here](https://gracemaker.readthedocs.io/en/latest/gracemaker/install/) and install `tensorpotential`:
+Find the installation instructions [here](https://gracemaker.readthedocs.io/en/latest/gracemaker/install/) and install `tensorpotential`. You might need an older Python version such as 3.11:
 
 ```shell
 pip install tensorpotential

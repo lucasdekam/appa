@@ -2,7 +2,7 @@
 
 When you have gathered several dozens of structures describing your system of interest, you can use them to build a training set. `appa` contains tools for structure selection and setting up DFT calculations with VASP.
 
-If you do not want to do this, you can find some example training data in the [examples folder](https://github.com/lucasdekam/appa/tree/main/examples/data) of this repo. `platinum-solvated-protons.xyz` and `platinum-water-dissociation` should include some near-transition state structures.
+If you do not want to do this, you can find some example training data in the [examples folder](https://github.com/lucasdekam/appa/tree/main/examples/data) of this repo. `platinum-solvated-protons.xyz` and `platinum-water-dissociation.xyz` should include some near-transition state structures.
 
 ## Structure selection
 
