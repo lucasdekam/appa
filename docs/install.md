@@ -15,6 +15,8 @@ Currently the script for pre-equilibrating newly created structures uses a NequI
 (nequip-install)=
 ## NequIP
 
+Recommended setup at the time of writing: Python 3.11 or 3.12, PyTorch 2.9.1 (seems that NequIP does not always work with the newest PyTorch version).
+
 Find the installation instructions [here](https://nequip.readthedocs.io/en/latest/guide/getting-started/install.html). In short
 
 ```shell
