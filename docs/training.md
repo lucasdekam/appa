@@ -12,7 +12,27 @@ Options:
   --help  Show this message and exit.
 ```
 
-[GRACE](https://gracemaker.readthedocs.io/en/latest/gracemaker/quickstart/#grace-model-parameterization) provides input defaults with the `gracemaker -t` tool. For MACE, you can use an input yaml such as 
+[GRACE](https://gracemaker.readthedocs.io/en/latest/gracemaker/quickstart/#grace-model-parameterization) provides input defaults with the `gracemaker -t` tool. 
+
+If your XYZ training set does not have the default ASE `energy` and `force` fields, it will not work with GRACE. You can convert an XYZ training set with `DFT_energy` and `DFT_forces` fields to a GRACE-compatible `.pkl.gz` file (a pickled and gzipped Pandas dataframe):
+
+```sh
+Usage: appa convert xyz2grace [OPTIONS] XYZ_FILE OUT_FILE
+
+  Convert an extxyz file to a GRACE-compatible DataFrame.
+
+Options:
+  --subtract-reference  Subtract reference energies from isolated atom configs
+  --help                Show this message and exit.
+```
+
+For example:
+
+```sh
+appa convert xyz2grace my_input.xyz my_output.pkl.gz
+```
+
+For MACE, you can use an input yaml such as 
 
 ```yaml
 name: mace
