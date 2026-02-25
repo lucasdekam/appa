@@ -41,7 +41,7 @@ module load CUDA/12.8.0
 source ~/.bashrc
 conda activate nequip  # or your own way to load an environment
 
-nequip-compile nequip.net:mir-group/NequIP-OAM-L:0.1 --mode aotinductor --device cuda --target ase
+nequip-compile nequip.net:mir-group/NequIP-OAM-L:0.1 mir-group__NequIP-OAM-L__0.1.nequip.pt2 --mode aotinductor --device cuda --target ase
 ```
 
 If you rerun this script many times, the NequIP server might deny your request and you should [download the model manually](https://www.nequip.net/models/mir-group/NequIP-OAM-L:0.1) and then supply the local path of the model to the compile command. 
