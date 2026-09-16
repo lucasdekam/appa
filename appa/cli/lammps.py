@@ -56,6 +56,24 @@ from ase.constraints import FixAtoms
     show_default=True,
     help="Path to PLUMED input file",
 )
+@click.option(
+    "--charge",
+    type=float,
+    default=None,
+    help=(
+        "Total charge in electrons (negative = excess electrons) for a "
+        "charge-conditioned GRACE model. Also logs the work function dE/dq."
+    ),
+)
+@click.option(
+    "--padding",
+    type=float,
+    default=None,
+    help=(
+        "GRACE fake-atom padding fraction (LAMMPS default: 0.01). Use 0 for an "
+        "exact work function in a single point or rerun; keep the default for MD."
+    ),
+)
 def lammps(
     model,
     architecture,
@@ -65,6 +83,8 @@ def lammps(
     timestep,
     dump_freq,
     plumed_file,
+    charge,
+    padding,
 ):
     """Write LAMMPS simulation inputs."""
     atoms = read(initial)
@@ -79,7 +99,14 @@ def lammps(
     click.echo(f"Fixed atom indices: {fixed_indices}")
 
     sim = AtomisticSimulation(atoms)
-    sim.set_potential(model, architecture=architecture)
+    sim.set_potential(
+        model,
+        architecture=architecture,
+        total_charge=charge,
+        padding=padding,
+    )
+    if charge is not None:
+        click.echo(f"Total charge: {charge} e; logging the work function dE/dq")
 
     sim.set_molecular_dynamics(
         temperature=temperature,

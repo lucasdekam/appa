@@ -17,6 +17,12 @@ Options:
   --dump-freq INTEGER  How many steps between saving frames to the dump file
                        [default: 20]
   --plumed-file TEXT   Path to PLUMED input file
+  --charge FLOAT       Total charge in electrons (negative = excess electrons)
+                       for a charge-conditioned GRACE model. Also logs the work
+                       function dE/dq.
+  --padding FLOAT      GRACE fake-atom padding fraction (LAMMPS default: 0.01).
+                       Use 0 for an exact work function in a single point or
+                       rerun; keep the default for MD.
   --help               Show this message and exit.
 ```
 
@@ -75,6 +81,69 @@ srun /home/ldkam/lammps/build/lmp -k on g 1 -sf kk -pk kokkos newton on neigh ha
 If you installed NequIP without kokkos then you should be able to use the same command as for GRACE. Otherwise see the [NequIP LAMMPS interface repo](https://github.com/mir-group/pair_nequip_allegro).
 
 From the MD you get a `lammps.dump` file which you can analyze further. TODO: add a CLI tool to convert to XTC.
+
+## Charged interfaces with GRACE
+
+A charge-conditioned (FiLM) GRACE model takes the total charge of the system as
+an input and exports the work function $\partial E/\partial q$ next to the
+energy and forces. Running that in LAMMPS instead of through ASE needs the
+[charge-conditioned fork](https://github.com/lucasdekam/lammps/tree/grace),
+which adds a `q` keyword to `pair_style grace` and publishes dE/dq as the pair
+style's global extra quantity.
+
+`appa` drives both through `--charge`:
+
+```sh
+appa lammps initial.xyz --architecture grace --model ~/train/seed/1/final_model \
+    --charge -0.5 --steps 20000
+```
+
+The charge is in electrons, **negative for excess electrons**, matching
+GPAW-SJM and the usual training-data convention. This writes
+
+```
+pair_style grace pad_verbose q -0.5
+pair_coeff * * /path/to/final_model H O Pt
+compute workfunc all pair grace
+```
+
+and adds `c_workfunc[1]` to `thermo_style` and a `work_function` column to
+`energy.log`, so the work function comes out of the same files as the energy —
+no separate output to collect.
+
+To sweep the charge, write one directory per charge and run them as an array
+job:
+
+```python
+from ase.io import read
+from appa.lammps import AtomisticSimulation, write_array_job_inputs
+
+atoms = read("initial.xyz")
+sims = []
+for q in [-1.0, -0.5, 0.0, 0.5, 1.0]:
+    sim = AtomisticSimulation(atoms)
+    sim.set_potential("final_model", architecture="grace", total_charge=q)
+    sim.set_molecular_dynamics(temperature=300, timestep=0.0005)
+    sim.set_log()
+    sim.set_dump()
+    sim.set_run(n_steps=20000)
+    sims.append(sim)
+
+write_array_job_inputs("runs", sims, folder_name="q")
+```
+
+Two things to keep in mind:
+
+* Passing `--charge` to a model that is *not* charge-conditioned is an error in
+  LAMMPS, not a warning — otherwise every number would silently be the $q = 0$
+  answer wearing a charge label. Passing it to a non-GRACE architecture is an
+  error in `appa`.
+* The reported dE/dq is that of the *padded* system. Padded atoms are
+  conditioned on the real charge and contribute, and unlike their contribution
+  to the energy that is not a constant offset. Use `--padding 0` when the
+  absolute work function has to be exact (a single point or a rerun); for MD,
+  keep the default, because retracing the TensorFlow graph every time the
+  neighbor count changes is prohibitively slow.
 
 ## Output file conversion
 

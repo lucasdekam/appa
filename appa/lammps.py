@@ -21,6 +21,9 @@ RERUN_STAGENAME = "Rerun"
 
 ALLOWED_ARCHS = ["mace-mliap", "grace", "nequip", "allegro", "mtt"]
 
+# id of the ``compute pair grace`` that exposes dE/dq of a charge-conditioned model
+WORK_FUNCTION_COMPUTE = "workfunc"
+
 
 class AtomisticSimulation(LammpsInputFile):
     """
@@ -49,6 +52,7 @@ class AtomisticSimulation(LammpsInputFile):
         self.atoms = atoms
         self.species = np.unique(self.atoms.get_chemical_symbols()).tolist()
         self.numbers = np.unique(self.atoms.get_atomic_numbers()).tolist()
+        self.has_work_function = False
 
         super().__init__(stages=None)
         self.add_stage(
@@ -70,6 +74,8 @@ class AtomisticSimulation(LammpsInputFile):
         self,
         model_file: os.PathLike,
         architecture: str = "mace-mliap",
+        total_charge: Optional[float] = None,
+        padding: Optional[float] = None,
     ):
         """
         Define commands for the interatomic potential (force field).
@@ -80,12 +86,38 @@ class AtomisticSimulation(LammpsInputFile):
             Path to the potential model file.
         architecture : {'mace-mliap', 'grace', 'mtt', ...}
             Type of architecture for the potential. Default is 'mace-mliap'.
+        total_charge : float, optional
+            Total charge of the system in electrons, negative for excess
+            electrons (the GPAW-SJM convention). Only for ``grace`` with a
+            charge-conditioned (FiLM) model; the model then also exports the
+            work function dE/dq, which is logged through a ``compute pair``.
+            Default is None: no charge keyword, so an ordinary model.
+        padding : float, optional
+            ``grace`` only: fraction of fake atoms padded onto the system so
+            that the TensorFlow graph does not have to be retraced every time
+            the neighbor count changes. Default is None, which leaves the
+            LAMMPS default (0.01).
+
+            Padded atoms are conditioned on the real charge and contribute to
+            dE/dq, and unlike their contribution to the energy that is not a
+            constant offset. Use ``padding=0`` for a single point or a rerun,
+            where an exact work function matters more than speed; keep the
+            default for MD, where retracing every step is prohibitive.
 
         Examples
         --------
         >>> sim.set_potential(model_file="my_potential.lammps.pt")
+        >>> sim.set_potential("final_model", architecture="grace", total_charge=-0.5)
         """
         formatted_symbols = " ".join(self.species)
+
+        if architecture != "grace":
+            for name, value in (("total_charge", total_charge), ("padding", padding)):
+                if value is not None:
+                    raise NotImplementedError(
+                        f"{name} is only supported for the 'grace' architecture, "
+                        f"not for '{architecture}'."
+                    )
 
         if architecture == "mace-mliap":
             self.add_commands(
@@ -100,12 +132,25 @@ class AtomisticSimulation(LammpsInputFile):
                 ],
             )
         elif architecture == "grace":
+            keywords = ["pad_verbose"]
+            if padding is not None:
+                keywords += ["padding", f"{padding}"]
+            if total_charge is not None:
+                keywords += ["q", f"{total_charge}"]
+
+            commands = [
+                "pair_style grace " + " ".join(keywords),
+                f"pair_coeff * * {model_file} {formatted_symbols}",
+            ]
+            if total_charge is not None:
+                # dE/dq is the pair style's global extra quantity; `compute
+                # pair` turns it into an ordinary thermo value c_<id>[1].
+                commands.append(f"compute {WORK_FUNCTION_COMPUTE} all pair grace")
+                self.has_work_function = True
+
             self.add_stage(
                 stage_name=POTL_STAGENAME,
-                commands=[
-                    f"pair_style grace pad_verbose",
-                    f"pair_coeff * * {model_file} {formatted_symbols}",
-                ],
+                commands=commands,
             )
         elif architecture == "mtt":
             formatted_numbers = " ".join(self.numbers)
@@ -186,7 +231,9 @@ class AtomisticSimulation(LammpsInputFile):
             f"timestep {timestep}",
         ]
 
-        if fixed_atoms is not None:
+        # an empty list means nothing is fixed: `group fixed_group id` with no
+        # ids is an illegal LAMMPS command
+        if fixed_atoms:
             fixed_atoms_one_based = [i + 1 for i in fixed_atoms]
             fixed_group_cmd = "group fixed_group id " + " ".join(
                 map(str, fixed_atoms_one_based)
@@ -248,13 +295,32 @@ class AtomisticSimulation(LammpsInputFile):
             "variable float2 format temp %.7f",
             "variable float3 format pe %.7f",
             "variable float4 format ke %.7f",
-            "fix myinfo all print 1 '${float1} ${float2} ${float3} ${float4}' title 'time temp pe ke' file energy.log screen no",
         ]
+        columns = ["${float1}", "${float2}", "${float3}", "${float4}"]
+        titles = ["time", "temp", "pe", "ke"]
 
         # logging in the default log.lammps logfile
+        thermo_keywords = ["step", "pe", "ke", "etotal", "temp"]
+
+        if self.has_work_function:
+            energy_logfile_commands += [
+                f"variable wf equal c_{WORK_FUNCTION_COMPUTE}[1]",
+                "variable float5 format wf %.7f",
+            ]
+            columns.append("${float5}")
+            titles.append("work_function")
+            thermo_keywords.append(f"c_{WORK_FUNCTION_COMPUTE}[1]")
+
+        column_spec = " ".join(columns)
+        title_spec = " ".join(titles)
+        energy_logfile_commands.append(
+            f"fix myinfo all print 1 '{column_spec}' "
+            f"title '{title_spec}' file energy.log screen no"
+        )
+
         default_logfile_commands = [
             f"thermo {log_freq}",
-            "thermo_style custom step pe ke etotal temp",
+            "thermo_style custom " + " ".join(thermo_keywords),
             "thermo_modify format float %15.5f",
         ]
 
