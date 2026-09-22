@@ -7,6 +7,7 @@ from appa.cli.select import select
 from appa.cli.plumed import plumed
 from appa.cli.vasp import vasp
 from appa.cli.convert import convert
+from appa.cli.view import view
 
 
 @click.group()
@@ -22,6 +23,7 @@ appa.add_command(select)
 appa.add_command(plumed)
 appa.add_command(vasp)
 appa.add_command(convert)
+appa.add_command(view)
 
 if __name__ == "__main__":
     appa()

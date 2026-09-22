@@ -161,3 +161,43 @@ Options:
   --nprocs INTEGER           Number of parallel processes.  [default: 1]
   --help                     Show this message and exit.
 ```
+
+## Looking at a trajectory
+
+To actually look at an XTC trajectory, `appa view` opens it in the ASE GUI:
+
+```sh
+appa view runs/task_000/lammps.xtc
+```
+
+An XTC file holds only positions and the box, so the species come from the
+`system.data` beside it — the one `appa convert xtc` wrote. Point `--topology`
+somewhere else if it lives elsewhere.
+
+```sh
+Usage: appa view [OPTIONS] TRAJECTORY
+
+  View an XTC trajectory in the ASE GUI.
+
+Options:
+  --topology FILE       LAMMPS data file with the species. Default:
+                        system.data next to the trajectory.
+  --start INTEGER       First frame to load.  [default: 0]
+  --stop INTEGER        Stop before this frame. Default: the end of the
+                        trajectory.
+  --every INTEGER       Load every Nth frame.  [default: 1]
+  --max-frames INTEGER  Refuse to load more frames than this, since the GUI
+                        becomes unusable and the images are held in memory.
+                        Use 0 for no limit.  [default: 2000]
+  --help                Show this message and exit.
+```
+
+Every frame is held in memory and the GUI slider gets unusable long before you
+run out of it, so a production run wants thinning rather than the whole thing:
+
+```sh
+appa view lammps.xtc --every 50
+```
+
+The `--max-frames` guard is there to stop you loading a 200k-frame trajectory
+by accident; it tells you which `--every` would have fit.
