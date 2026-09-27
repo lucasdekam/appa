@@ -100,7 +100,9 @@ appa lammps initial.xyz --architecture grace --model ~/train/seed/1/final_model 
 
 Options: `--architecture` and `--model` (both required), `--steps`,
 `--temperature` (K), `--timestep` (**ps**, default 0.0005 = 0.5 fs),
-`--dump-freq`, `--plumed-file`, `--charge`, `--padding`. It writes `input.lmp`
+`--dump-freq`, `--plumed-file`, `--charge`, `--padding`, `--boundary`,
+`--thermostat {nose-hoover,csvr}`, `--damping` (ps), `--wall-distance`,
+`--wall-species`, `--wall-k`, `--surface-species`. It writes `input.lmp`
 and `system.data` into the **current working directory** — `cd` to the run
 directory first; there is no `-o`.
 
@@ -198,6 +200,20 @@ Four things to know:
   `q`, and it is deliberately built **without Kokkos**: the Kokkos pair styles
   read a `.npz` from `grace_utils export_kokkos`, which rejects FiLM's
   instruction graph.
+
+### Boundary, thermostat and wall
+
+- **The boundary follows `atoms.pbc`**: `p` where periodic, `f` where not, so an
+  extxyz with `pbc="T T F"` gives `boundary p p f`; `--boundary` overrides. A
+  script that sets `atoms.pbc = True` before building keeps `p p p`. With `f`
+  an escaping atom is lost and LAMMPS stops instead of wrapping.
+- `--thermostat csvr` writes `fix nve` + `fix temp/csvr` on the mobile group
+  (EXTRA-FIX package). `--damping` is in ps for either thermostat.
+- `--wall-distance D` puts a one-sided harmonic wall D Å above the top frozen
+  (electrode) atom, on O by default, `F = -k (z - z0)` above it, as in
+  `appa equilibrate` and the RAZOR MD. It is `fix wall/harmonic zhi` placed
+  5 Å beyond the plane with `eps = k/2`. **It needs a non-periodic z**; appa
+  raises on `p p p` rather than let LAMMPS fail at run time.
 
 ## Sweeps and array jobs
 

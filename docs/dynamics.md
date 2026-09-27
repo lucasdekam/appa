@@ -8,22 +8,41 @@ Usage: appa lammps [OPTIONS] INITIAL
   Write LAMMPS simulation inputs.
 
 Options:
-  --architecture TEXT  appa-supported architecture (mace-mliap, grace, mtt,
-                       nequip...)  [required]
-  --model TEXT         Path to model  [required]
-  --steps INTEGER      Number of steps to run  [default: 1000]
-  --temperature FLOAT  MD temperature (K)  [default: 300]
-  --timestep FLOAT     MD timestep (ps)  [default: 0.0005]
-  --dump-freq INTEGER  How many steps between saving frames to the dump file
-                       [default: 20]
-  --plumed-file TEXT   Path to PLUMED input file
-  --charge FLOAT       Total charge in electrons (negative = excess electrons)
-                       for a charge-conditioned GRACE model. Also logs the work
-                       function dE/dq.
-  --padding FLOAT      GRACE fake-atom padding fraction (LAMMPS default: 0.01).
-                       Use 0 for an exact work function in a single point or
-                       rerun; keep the default for MD.
-  --help               Show this message and exit.
+  --architecture TEXT             appa-supported architecture (mace-mliap,
+                                  grace, mtt, nequip...)  [required]
+  --model TEXT                    Path to model  [required]
+  --steps INTEGER                 Number of steps to run  [default: 1000]
+  --temperature FLOAT             MD temperature (K)  [default: 300]
+  --timestep FLOAT                MD timestep (ps)  [default: 0.0005]
+  --dump-freq INTEGER             How many steps between saving frames to the
+                                  dump file  [default: 20]
+  --plumed-file TEXT              Path to PLUMED input file
+  --charge FLOAT                  Total charge in electrons (negative = excess
+                                  electrons) for a charge-conditioned GRACE
+                                  model. Also logs the work function dE/dq.
+  --padding FLOAT                 GRACE fake-atom padding fraction (LAMMPS
+                                  default: 0.01). Use 0 for an exact work
+                                  function in a single point or rerun; keep
+                                  the default for MD.
+  --boundary TEXT                 LAMMPS boundary, e.g. "p p f". Default: from
+                                  the structure's pbc (p where periodic, f
+                                  where not). --wall-distance needs a non-
+                                  periodic z.
+  --thermostat [nose-hoover|csvr]
+                                  fix nvt, or Bussi's stochastic velocity
+                                  rescaling (fix temp/csvr + nve).  [default:
+                                  nose-hoover]
+  --damping FLOAT                 Thermostat relaxation time (ps). Default:
+                                  100 x timestep.
+  --wall-distance FLOAT           Add a one-sided harmonic wall this far (Å)
+                                  above the top electrode atom, acting on
+                                  --wall-species. Default: no wall.
+  --wall-species TEXT             Element the wall acts on.  [default: O]
+  --wall-k FLOAT                  Wall spring constant (eV/Å^2), as for `appa
+                                  equilibrate`.  [default: 1.0]
+  --surface-species TEXT          Electrode element the wall is measured from.
+                                  Default: the frozen atoms' element.
+  --help                          Show this message and exit.
 ```
 
 The PLUMED file is optional.
@@ -144,6 +163,52 @@ Two things to keep in mind:
   absolute work function has to be exact (a single point or a rerun); for MD,
   keep the default, because retracing the TensorFlow graph every time the
   neighbor count changes is prohibitively slow.
+
+## Thermostat, boundary and a wall
+
+Three options matter for interfaces run at elevated temperature or compared
+against a reference MD.
+
+**Thermostat.** `--thermostat csvr` replaces `fix nvt` (Nose-Hoover) with
+Bussi's stochastic velocity rescaling, `fix temp/csvr`, plus the `fix nve` it
+needs for the integration. Both act on the mobile atoms only. CSVR samples the
+canonical ensemble without the non-ergodicity a single Nose-Hoover thermostat
+can show in a small system. `--damping` sets the relaxation time in ps for
+either thermostat (default `100 x timestep`, i.e. 0.05 ps at 0.5 fs).
+
+**Boundary.** The LAMMPS `boundary` follows the structure's `pbc`: `p` where
+periodic, `f` where not. An extxyz slab with `pbc="T T F"` therefore runs with
+`boundary p p f`, as slab DFT does; `appa build` output is fully periodic and
+keeps `p p p`. `--boundary "p p f"` overrides it. With `f` an atom leaving the
+box is lost and LAMMPS stops, rather than wrapping onto the far side of the
+slab. For a model with a cutoff shorter than the vacuum gap, and one that does
+not read the cell (GRACE in LAMMPS does not), `p p f` and `p p p` give the same
+energies and forces.
+
+**Wall.** `--wall-distance 10` adds a one-sided harmonic wall 10 Å above the
+top electrode atom, the Hookean plane of the RAZOR MD. Oxygens above the plane
+feel `F = -k (z - z0)`; below it, nothing. `--wall-k` is in eV/Å² as for
+`appa equilibrate`, `--wall-species` defaults to `O`, and the electrode element
+is read off the frozen atoms (`--surface-species` overrides it). It is written as
+
+```
+group wall_group type 2
+fix wall_fix wall_group wall/harmonic zhi 26.1482 0.5 1.0 5.0
+```
+
+i.e. the LAMMPS wall sits `cutoff` (5 Å) beyond the plane with `eps = k/2`,
+which turns LAMMPS's repulsive `eps (r - r_c)^2` into exactly the one-sided
+spring. LAMMPS refuses a wall in a periodic dimension, so appa refuses a wall
+with a periodic z. The wall energy is not added to `pe`.
+
+```sh
+appa lammps slab.xyz --architecture grace --model final_model --charge 0.5 \
+    --temperature 410 --thermostat csvr --damping 0.1 --wall-distance 10
+```
+
+In Python: `AtomisticSimulation(atoms, boundary=None)`,
+`set_molecular_dynamics(..., thermostat="csvr", damping=0.1)` and
+`sim.set_harmonic_wall(distance=10.0, k=1.0)`, which returns the plane height.
 
 ## Output file conversion
 

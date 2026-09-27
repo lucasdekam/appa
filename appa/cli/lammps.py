@@ -74,6 +74,57 @@ from ase.constraints import FixAtoms
         "exact work function in a single point or rerun; keep the default for MD."
     ),
 )
+@click.option(
+    "--boundary",
+    type=str,
+    default=None,
+    help=(
+        'LAMMPS boundary, e.g. "p p f". Default: from the structure\'s pbc '
+        "(p where periodic, f where not). --wall-distance needs a non-periodic z."
+    ),
+)
+@click.option(
+    "--thermostat",
+    type=click.Choice(["nose-hoover", "csvr"]),
+    default="nose-hoover",
+    show_default=True,
+    help="fix nvt, or Bussi's stochastic velocity rescaling (fix temp/csvr + nve).",
+)
+@click.option(
+    "--damping",
+    type=float,
+    default=None,
+    help="Thermostat relaxation time (ps). Default: 100 x timestep.",
+)
+@click.option(
+    "--wall-distance",
+    type=float,
+    default=None,
+    help=(
+        "Add a one-sided harmonic wall this far (Å) above the top electrode "
+        "atom, acting on --wall-species. Default: no wall."
+    ),
+)
+@click.option(
+    "--wall-species",
+    type=str,
+    default="O",
+    show_default=True,
+    help="Element the wall acts on.",
+)
+@click.option(
+    "--wall-k",
+    type=float,
+    default=1.0,
+    show_default=True,
+    help="Wall spring constant (eV/Å^2), as for `appa equilibrate`.",
+)
+@click.option(
+    "--surface-species",
+    type=str,
+    default=None,
+    help="Electrode element the wall is measured from. Default: the frozen atoms' element.",
+)
 def lammps(
     model,
     architecture,
@@ -85,6 +136,13 @@ def lammps(
     plumed_file,
     charge,
     padding,
+    boundary,
+    thermostat,
+    damping,
+    wall_distance,
+    wall_species,
+    wall_k,
+    surface_species,
 ):
     """Write LAMMPS simulation inputs."""
     atoms = read(initial)
@@ -98,7 +156,11 @@ def lammps(
                 break
     click.echo(f"Fixed atom indices: {fixed_indices}")
 
-    sim = AtomisticSimulation(atoms)
+    try:
+        sim = AtomisticSimulation(atoms, boundary=boundary)
+    except ValueError as e:
+        raise click.UsageError(str(e)) from e
+    click.echo(f"Boundary: {' '.join(sim.boundary)}")
     sim.set_potential(
         model,
         architecture=architecture,
@@ -108,11 +170,29 @@ def lammps(
     if charge is not None:
         click.echo(f"Total charge: {charge} e; logging the work function dE/dq")
 
+    md_kwargs = {} if damping is None else {"damping": damping}
     sim.set_molecular_dynamics(
         temperature=temperature,
         timestep=timestep,
         fixed_atoms=fixed_indices,
+        thermostat=thermostat,
+        **md_kwargs,
     )
+    click.echo(f"Thermostat: {thermostat}")
+    if wall_distance is not None:
+        try:
+            z0 = sim.set_harmonic_wall(
+                wall_distance,
+                species=wall_species,
+                surface_species=surface_species,
+                k=wall_k,
+            )
+        except ValueError as e:
+            raise click.UsageError(str(e)) from e
+        click.echo(
+            f"Harmonic wall on {wall_species} at z = {z0:.3f} Å "
+            f"({wall_distance} Å above the electrode), k = {wall_k} eV/Å^2"
+        )
     if plumed_file is not None:
         sim.set_plumed(plumed_file)
     sim.set_log()

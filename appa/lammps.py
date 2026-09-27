@@ -6,6 +6,7 @@ from typing import Literal, Optional
 import os
 import numpy as np
 from ase import Atoms, io
+from ase.constraints import FixAtoms
 from pymatgen.io.lammps.inputs import LammpsInputFile
 
 SYSTEM_DATA_FILENAME = "system.data"
@@ -13,6 +14,7 @@ INIT_STAGENAME = "Initialization"
 READ_STAGENAME = "Define simulation box"
 POTL_STAGENAME = "Define interatomic potential"
 MDYN_STAGENAME = "Molecular dynamics setup"
+WALL_STAGENAME = "Harmonic wall"
 PLUMED_STAGENAME = "Plumed input and output"
 LOG_STAGENAME = "Logging settings"
 DUMP_STAGENAME = "Dump output settings"
@@ -40,7 +42,7 @@ class AtomisticSimulation(LammpsInputFile):
     >>> sim.write_file(filename="input.lmp")
     """
 
-    def __init__(self, atoms: Atoms):
+    def __init__(self, atoms: Atoms, boundary: Optional[str] = None):
         """
         Initialize the atomistic simulation with given atoms.
 
@@ -48,18 +50,40 @@ class AtomisticSimulation(LammpsInputFile):
         ----------
         atoms : Atoms
             ASE Atoms object containing the atomic configuration.
+        boundary : str, optional
+            LAMMPS ``boundary`` string, e.g. ``"p p f"``. Default: read from
+            ``atoms.pbc``, ``p`` where periodic and ``f`` (fixed, non-periodic)
+            where not. A slab from an extxyz with ``pbc="T T F"`` therefore
+            runs with ``p p f``, matching how slab DFT and its training data
+            treat the normal. With ``f`` an atom that leaves the box is lost
+            and LAMMPS stops, rather than wrapping onto the far side of the
+            slab.
         """
         self.atoms = atoms
         self.species = np.unique(self.atoms.get_chemical_symbols()).tolist()
         self.numbers = np.unique(self.atoms.get_atomic_numbers()).tolist()
         self.has_work_function = False
 
+        if boundary is None:
+            boundary = " ".join("p" if p else "f" for p in atoms.pbc)
+        self.boundary = boundary.split()
+        if len(self.boundary) != 3:
+            raise ValueError(f"boundary needs three flags, got '{boundary}'")
+        for flag, length in zip(self.boundary, atoms.cell.lengths()):
+            # LAMMPS reads the box from the cell in every direction, periodic
+            # or not, so a zero-length cell vector would give a zero-size box
+            if length <= 0:
+                raise ValueError(
+                    f"cell has a zero-length vector (boundary '{flag}'); "
+                    "LAMMPS needs a box in every direction."
+                )
+
         super().__init__(stages=None)
         self.add_stage(
             stage_name=INIT_STAGENAME,
             commands=[
                 "units metal",
-                "boundary p p p",
+                f"boundary {' '.join(self.boundary)}",
                 "atom_style atomic",
             ],
         )
@@ -193,6 +217,7 @@ class AtomisticSimulation(LammpsInputFile):
         temperature: int = 300,
         timestep: float = 0.0005,
         fixed_atoms: Optional[list[int]] = None,
+        thermostat: Literal["nose-hoover", "csvr"] = "nose-hoover",
         **kwargs,
     ):
         """
@@ -204,11 +229,22 @@ class AtomisticSimulation(LammpsInputFile):
             Temperature in Kelvin. Default is 300.
         timestep : float, optional
             Timestep for integration in picoseconds. Default is 0.0005.
+        fixed_atoms : list of int, optional
+            Zero-based indices of atoms to freeze. The thermostat then acts on
+            the remaining (``mobile``) atoms only.
+        thermostat : {'nose-hoover', 'csvr'}, optional
+            ``'nose-hoover'`` (default) writes ``fix nvt``. ``'csvr'`` writes
+            Bussi's stochastic velocity rescaling, ``fix temp/csvr``, together
+            with the ``fix nve`` it needs for the time integration. CSVR
+            samples the canonical ensemble without the non-ergodicity a single
+            Nose-Hoover thermostat can show for small systems. It needs
+            LAMMPS's EXTRA-FIX package.
 
         Other Parameters
         ----------------
         damping : float, optional
-            Damping factor for NVT thermostat. Default is ``100 * timestep``.
+            Thermostat relaxation time in picoseconds (``Tdamp``), for either
+            thermostat. Default is ``100 * timestep``.
         skin : float, optional
             Skin distance for neighbor list construction. Default is 2.0.
         seed : int, optional
@@ -219,7 +255,12 @@ class AtomisticSimulation(LammpsInputFile):
         Examples
         --------
         >>> sim.set_molecular_dynamics(temperature=500, timestep=0.001, seed=42)
+        >>> sim.set_molecular_dynamics(temperature=330, thermostat="csvr", damping=0.1)
         """
+        if thermostat not in ("nose-hoover", "csvr"):
+            raise ValueError(
+                f"thermostat must be 'nose-hoover' or 'csvr', got '{thermostat}'"
+            )
         damping = kwargs.get("damping", 100 * timestep)
         skin = kwargs.get("skin", 2.0)
         seed = kwargs.get("seed", 1)
@@ -243,19 +284,149 @@ class AtomisticSimulation(LammpsInputFile):
                 "fix freeze_fix fixed_group setforce 0.0 0.0 0.0",
                 "velocity fixed_group set 0.0 0.0 0.0",
                 "group mobile subtract all fixed_group",
-                f"velocity mobile create {temperature} {seed} mom yes rot no",
-                f"fix nvt_fix mobile nvt temp {temperature} {temperature} {damping}",
             ]
+            group = "mobile"
         else:
+            group = "all"
+
+        commands.append(f"velocity {group} create {temperature} {seed} mom yes rot no")
+        if thermostat == "nose-hoover":
+            commands.append(
+                f"fix nvt_fix {group} nvt temp {temperature} {temperature} {damping}"
+            )
+        else:
+            # temp/csvr only rescales velocities; fix nve does the integration.
+            # Both act on the same group, so frozen atoms are neither moved nor
+            # counted in the thermostat's temperature.
             commands += [
-                f"velocity all create {temperature} {seed} mom yes rot no",
-                f"fix nvt_fix all nvt temp {temperature} {temperature} {damping}",
+                f"fix nve_fix {group} nve",
+                f"fix csvr_fix {group} temp/csvr {temperature} {temperature} "
+                f"{damping} {seed}",
             ]
 
         self.add_stage(
             stage_name=MDYN_STAGENAME,
             commands=commands,
         )
+
+    def set_harmonic_wall(
+        self,
+        distance: float,
+        species: str = "O",
+        surface_species: Optional[str] = None,
+        k: float = 1.0,
+        cutoff: float = 5.0,
+    ):
+        """
+        One-sided harmonic wall a fixed distance above the electrode surface.
+
+        Every atom of ``species`` above the plane ``z0 = z_surface + distance``
+        feels ``F_z = -k (z - z0)`` (energy ``k (z - z0)^2 / 2``); below the
+        plane it feels nothing. This is the wall `appa equilibrate` uses, and
+        the Hookean plane constraint of the RAZOR MD (Bergmann, Reuter &
+        Hoermann, J. Chem. Phys. 164, 174110 (2026), 10 A above Pt). It keeps
+        water from evaporating into the vacuum gap, which matters at elevated
+        temperature.
+
+        ``z_surface`` is the highest ``surface_species`` atom *of the initial
+        structure*, so the plane is fixed in space during the run.
+
+        Written as ``fix wall/harmonic`` on the ``zhi`` face. LAMMPS's
+        ``E = eps (r - r_c)^2`` for ``r < r_c`` is repulsive from the wall out
+        to ``r_c``, so placing the LAMMPS wall at ``z0 + cutoff`` with
+        ``eps = k / 2`` makes it exactly the one-sided spring above: zero below
+        ``z0``, ``k (z - z0)^2 / 2`` between ``z0`` and the LAMMPS wall. An atom
+        reaching the LAMMPS wall itself (``cutoff`` beyond ``z0``, an energy of
+        ``k cutoff^2 / 2``) is a LAMMPS error. The wall energy is not added to
+        ``pe`` (no ``fix_modify energy yes``), so the logged energy stays the
+        model's own.
+
+        LAMMPS refuses a wall in a periodic dimension, so z must be
+        non-periodic: build the simulation from atoms with ``pbc[2] = False``
+        (``pbc="T T F"`` in extxyz) or pass ``boundary="p p f"``.
+
+        Parameters
+        ----------
+        distance : float
+            Height of the wall plane above the top ``surface_species`` atom, Å.
+        species : str, optional
+            Element the wall acts on. Default ``'O'``: holding the oxygens
+            holds the molecules, and H bonded to them follows.
+        surface_species : str, optional
+            Element of the electrode surface. Default: the element of the
+            atoms frozen by the structure's ``FixAtoms`` constraint, i.e. the
+            slab that `appa build --fix-layers` fixes.
+        k : float, optional
+            Spring constant in eV/Å², as for `appa equilibrate`. Default 1.0.
+        cutoff : float, optional
+            How far beyond ``z0`` the spring extends before the hard LAMMPS
+            wall, Å. Default 5.0, i.e. 12.5 eV at k = 1: never reached.
+
+        Returns
+        -------
+        float
+            The plane height ``z0`` in Å.
+
+        Examples
+        --------
+        >>> sim = AtomisticSimulation(atoms)                      # pbc T T F
+        >>> sim.set_harmonic_wall(distance=10.0)                  # O, 10 Å above Pt
+        >>> sim.set_harmonic_wall(10.0, surface_species="Pt", k=5.0)
+        """
+        if self.boundary[2].startswith("p"):
+            raise ValueError(
+                "a wall needs a non-periodic z, but the boundary is "
+                f"'{' '.join(self.boundary)}'. Use atoms with pbc[2] = False or "
+                "AtomisticSimulation(atoms, boundary='p p f') (CLI: --boundary 'p p f')."
+            )
+        symbols = np.array(self.atoms.get_chemical_symbols())
+        z = self.atoms.get_positions()[:, 2]
+
+        if surface_species is None:
+            fixed = [
+                i for c in self.atoms.constraints if isinstance(c, FixAtoms)
+                for i in c.index
+            ]
+            if not fixed:
+                raise ValueError(
+                    "surface_species not given and the structure has no FixAtoms "
+                    "constraint to infer the electrode from; pass surface_species."
+                )
+            fixed_species = np.unique(symbols[fixed])
+            if len(fixed_species) != 1:
+                raise ValueError(
+                    f"frozen atoms contain {fixed_species.tolist()}; pass "
+                    "surface_species explicitly."
+                )
+            surface_species = str(fixed_species[0])
+
+        for name in (species, surface_species):
+            if name not in self.species:
+                raise ValueError(f"'{name}' is not in this structure ({self.species}).")
+
+        z0 = float(z[symbols == surface_species].max() + distance)
+        z_wall = z0 + cutoff
+        if z[symbols == species].max() >= z_wall:
+            raise ValueError(
+                f"a {species} atom already sits at z = {z[symbols == species].max():.2f}, "
+                f"at or beyond the LAMMPS wall at {z_wall:.2f}; raise distance or cutoff."
+            )
+        # same index as the LAMMPS type: specorder in write_inputs is self.species
+        atom_type = self.species.index(species) + 1
+
+        commands = [
+            f"group wall_group type {atom_type}",
+            f"fix wall_fix wall_group wall/harmonic zhi {z_wall:.4f} {k / 2} 1.0 {cutoff}",
+        ]
+        # before the run stage whatever the call order, so the wall is in
+        # force from step 0
+        names = self.stages_names
+        after = next(
+            (s for s in (MDYN_STAGENAME, POTL_STAGENAME, READ_STAGENAME) if s in names),
+            None,
+        )
+        self.add_stage(stage_name=WALL_STAGENAME, commands=commands, after_stage=after)
+        return z0
 
     def set_plumed(
         self,
