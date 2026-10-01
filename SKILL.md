@@ -250,6 +250,47 @@ SLURM templates; copy them rather than writing a submission script from scratch.
 The pattern in both: stage the run onto node-local scratch, `appa lammps` *inside*
 the job so the input is generated next to the data, run, copy back.
 
+## `appa select` — picking frames to label
+
+```bash
+appa select -d frames_dir/ --size 400 -o selected.xyz [-s O -s H -s Pt] [--bw 0.065]
+```
+
+QUESTS (`quests`) maximum set coverage: per-atom descriptors (k = 32, 5 Å),
+a per-frame entropy, then greedy `quests.compression.fps.msc`, which picks the
+frame whose most novel environment plus entropy is largest. `-s` filters out
+whole frames by species; it does not select atoms.
+
+Three things it does not do yet, all worked out in lorem-q-work's
+`datasets/razor_additional/single_q-1/build_frames.py`. Move them here when
+that builder moves to a central place:
+
+- **Interfacial rows only.** Keep the descriptor rows of the atoms that
+  matter, e.g. O within 4 Å of the top metal layer. Each row still sees its
+  full environment, and the kernel matrices shrink ~13x: 1150 candidates
+  against 960 seed frames select 400 in ~30 s.
+- **Seeding with existing labels.** `msc` has no seed argument. Start its
+  kernel accumulator from `kernel_sum(candidates, labelled)` instead of 0, so
+  "novel" means novel against the dataset, not only against the other picks
+  (`seeded_msc` there). Without it, a selection happily re-picks what is
+  already labelled.
+- **Charge-aware novelty (planned).** The kernel is Gaussian in descriptor
+  distance, so appending a column `q * h / sigma_q` to every row gives exactly
+  the product kernel `K_struct * exp(-dq^2 / 2 sigma_q^2)`. A structure then
+  counts as redundant only if a similar one is labelled at a similar charge.
+  `sigma_q ~ 0.25 e`, the stencil spacing, gives overlaps of 0.61 / 0.14 / ~0
+  at dq = 0.25 / 0.5 / 1 e. The frame entropy is unchanged (q is constant in a
+  frame). This replaces hand-set per-charge quotas in multi-charge selections.
+  If candidates are copied onto other charges to choose the labelling charge,
+  keep them within ~0.25 e of the charge their MD ran at: labelling far from
+  it pins the work function (razor_additional cycle 2).
+
+Pre-thin trajectories in time before computing descriptors (one frame per ps
+is plenty). Coverage saturates quickly: in the q = -1 selection, each pick's
+most novel environment already had ~10 similar labelled ones by pick 50 and
+~55 by pick 370, so the novelty curve is a good guide to how many frames are
+worth labelling.
+
 ## Gotchas
 
 - **`--timestep` is in picoseconds**, not fs. 0.0005 is 0.5 fs. Passing `0.5`
