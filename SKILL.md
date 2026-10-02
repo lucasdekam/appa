@@ -261,10 +261,21 @@ a per-frame entropy, then greedy `quests.compression.fps.msc`, which picks the
 frame whose most novel environment plus entropy is largest. `-s` filters out
 whole frames by species; it does not select atoms.
 
-Three things it does not do yet, all worked out in lorem-q-work's
-`datasets/razor_additional/single_q-1/build_frames.py`. Move them here when
-that builder moves to a central place:
+Four things it does not do yet, all worked out in lorem-q-work's
+`datasets/razor_additional/select_frames.py` (with `bandwidth.py` and the
+README's *Choosing frames*). Move them here when that script moves to a
+central place:
 
+- **A descriptor that sees species and angles.** QUESTS's mixed block sorts
+  neighbour distances without knowing which neighbour is which, so water
+  orientation relative to the metal is invisible (5-NN H-up vs H-down at
+  chance), and H vibration in 50 fs moves it further than chemisorption does.
+  A SOAP power spectrum (featomic, H/O/Pt, 6.5 A, unit-normalised) at
+  h = 0.085 separates chemisorbed from physisorbed O 1.5x above the thermal
+  jitter and partly resolves orientation (0.76), at ~5 ms per frame on CPU.
+  QUESTS's `kernel_sum`/`entropy`/`msc` take any vectors, so only the
+  descriptor changes. Set h from the descriptor's own distance scales
+  (`bandwidth.py`), not from appa's 0.065, which is a QUESTS-unit default.
 - **Interfacial rows only.** Keep the descriptor rows of the atoms that
   matter, e.g. O within 4 Å of the top metal layer. Each row still sees its
   full environment, and the kernel matrices shrink ~13x: 1150 candidates
@@ -273,20 +284,21 @@ that builder moves to a central place:
   kernel accumulator from `kernel_sum(candidates, labelled)` instead of 0, so
   "novel" means novel against the dataset, not only against the other picks
   (`seeded_msc` there). Without it, a selection happily re-picks what is
-  already labelled.
-- **Charge-aware novelty (planned).** The kernel is Gaussian in descriptor
-  distance, so appending a column `q * h / sigma_q` to every row gives exactly
-  the product kernel `K_struct * exp(-dq^2 / 2 sigma_q^2)`. A structure then
-  counts as redundant only if a similar one is labelled at a similar charge.
-  `sigma_q ~ 0.25 e`, the stencil spacing, gives overlaps of 0.61 / 0.14 / ~0
-  at dq = 0.25 / 0.5 / 1 e. The frame entropy is unchanged (q is constant in a
-  frame). This replaces hand-set per-charge quotas in multi-charge selections.
-  If candidates are copied onto other charges to choose the labelling charge,
-  keep them within ~0.25 e of the charge their MD ran at: labelling far from
-  it pins the work function (razor_additional cycle 2).
+  already labelled. Drop exact repeats of submitted geometries before that.
+- **Charge-aware novelty.** The kernel is Gaussian in descriptor distance, so
+  dividing the rows by h and appending a column `q / sigma_q`, then using unit
+  bandwidth, gives exactly `K_struct * exp(-dq^2 / 2 sigma_q^2)`. A structure
+  then counts as redundant only if a similar one is labelled at a similar
+  charge. `sigma_q ~ 0.25 e`, the stencil spacing, gives overlaps of
+  0.61 / 0.14 / ~0 at dq = 0.25 / 0.5 / 1 e. The frame entropy is unchanged (q
+  is constant in a frame). This replaces hand-set per-charge quotas in
+  multi-charge selections. If candidates are copied onto other charges to
+  choose the labelling charge, keep them within ~0.25 e of the charge their MD
+  ran at: labelling far from it pins the work function (razor_additional
+  cycle 2).
 
 Pre-thin trajectories in time before computing descriptors (one frame per ps
-is plenty). Coverage saturates quickly: in the q = -1 selection, each pick's
+is plenty). Coverage saturates quickly: in the q = -1 selection (QUESTS descriptor, h = 0.065), each pick's
 most novel environment already had ~10 similar labelled ones by pick 50 and
 ~55 by pick 370, so the novelty curve is a good guide to how many frames are
 worth labelling.
